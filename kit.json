@@ -1,0 +1,25 @@
+{
+  "kit": "alladarmoussine/portfolio-kit",
+  "source": "alladarmoussine/AlladarMoussineSite",
+  "build": 8,
+  "date": "2026-10-24",
+  "commit": "87198ee",
+  "files": [
+    ".gitattributes",
+    "README.md",
+    "index.html",
+    "css/style.css",
+    "css/admin.css",
+    "js/main.js",
+    "js/admin.js",
+    "js/i18n.js",
+    "starter/site.js"
+  ],
+  "notes": [
+    {
+      "build": 8,
+      "date": "2026-10-24",
+      "message": "Update"
+    }
+  ]
+}

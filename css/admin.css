@@ -1,0 +1,722 @@
+/* Admin panel (loaded only with js/admin.js). Uses the colour variables from style.css. */
+.adm-root {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  width: min(560px, 100%);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-alt);
+  border-left: 1px solid var(--border);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.adm-root[hidden] { display: none; }
+
+.adm-screen { padding: 20px; }
+
+.adm-root h2 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+
+.adm-card { display: grid; gap: 14px; }
+
+.adm-card-head,
+.adm-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.adm-top {
+  position: sticky;
+  top: -20px;
+  z-index: 2;
+  margin: -20px -20px 0;
+  padding: 16px 20px;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.adm-top h2 { white-space: nowrap; }
+
+.adm-top-actions { display: flex; align-items: center; gap: 8px; }
+
+.adm-help { margin: 0; color: var(--text-dim); }
+.adm-help a { color: var(--accent); text-decoration: underline; }
+
+.adm-field { display: grid; gap: 6px; }
+
+.adm-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.adm-check input { width: 16px; height: 16px; accent-color: var(--accent-orange); }
+
+/* Top section tab */
+.adm-group-box { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+.adm-btn.adm-btn-danger:hover { border-color: #e5484d; color: #ff8a8d; }
+.adm-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.adm-value { margin-left: 4px; color: var(--accent-orange); font-weight: 700; }
+.adm-root input[type="range"] { width: 100%; accent-color: var(--accent-orange); }
+
+@media (max-width: 520px) {
+  .adm-checks { grid-template-columns: 1fr; }
+}
+.adm-label { font-weight: 700; font-size: 0.85rem; }
+.adm-hint { color: var(--text-dim); font-size: 0.82rem; }
+.adm-path { font-family: ui-monospace, Consolas, monospace; font-size: 0.82rem; word-break: break-all; }
+.adm-path em { color: var(--accent-orange); font-style: normal; }
+
+.adm-root input[type="text"],
+.adm-root input[type="url"],
+.adm-root input[type="email"],
+.adm-root input[type="password"],
+.adm-root textarea,
+.adm-root select {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.adm-root textarea { resize: vertical; }
+
+.adm-root input:focus,
+.adm-root textarea:focus,
+.adm-root select:focus { outline: none; border-color: var(--accent); }
+
+.adm-root input[type="file"] { font: inherit; font-size: 0.85rem; color: var(--text-dim); }
+
+.adm-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.adm-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+@media (max-width: 480px) {
+  .adm-row2,
+  .adm-row3 { grid-template-columns: 1fr; }
+}
+
+.adm-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.adm-btn:hover { border-color: var(--accent-orange); color: var(--accent-orange); }
+.adm-btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.adm-btn-primary:hover { background: var(--text); border-color: var(--text); color: var(--bg); }
+.adm-btn:disabled { opacity: 0.5; cursor: wait; }
+
+.adm-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.adm-link:hover { color: var(--accent-orange); }
+
+.adm-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.adm-close:hover { border-color: var(--accent-orange); color: var(--accent-orange); }
+
+.adm-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.adm-error { margin: 0; min-height: 1.2em; color: var(--accent-orange); }
+
+.adm-status {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.adm-status.is-ok { color: #6ee7a0; }
+.adm-status.is-error { color: var(--accent-orange); }
+
+/* Editing language picker, between the status line and the tabs */
+.adm-lang { display: grid; gap: 8px; margin-top: 14px; }
+
+.adm-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 18px;
+}
+
+.adm-tab {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.adm-tab.is-active { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 700; }
+
+.adm-form { display: grid; gap: 14px; }
+
+.adm-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.adm-entry {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.adm-entry.is-open { padding: 12px; }
+
+.adm-entry-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.adm-entry-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-badge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  /* A tint of the accent, so it reads on light and dark themes alike */
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.adm-row-controls { display: flex; gap: 4px; flex: none; }
+
+.adm-icon {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.adm-icon:hover:not(:disabled) { border-color: var(--accent-orange); color: var(--accent-orange); }
+.adm-icon:disabled { opacity: 0.3; cursor: default; }
+
+.adm-inline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* Minimised: panel slides off the right edge, leaving a tab to bring it back */
+.adm-root { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.adm-root.is-min { transform: translateX(100%); box-shadow: none; }
+
+.adm-edge {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 9px;
+  border: 0;
+  border-radius: 10px 0 0 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  translate: 0 -50%;
+  box-shadow: -6px 0 20px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.adm-edge:hover { background: #fff; color: var(--bg); }
+.adm-edge[hidden] { display: none; }
+
+.adm-edge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-orange);
+  box-shadow: 0 0 0 2px var(--on-accent);
+}
+
+.adm-edge-dot[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-root { transition: none; }
+}
+
+/* Editing on the page: items get a pencil on hover; pressing it unlocks that item's text (.adm-active) */
+/* (The About photo is positioned already; making it relative would pull it out of place) */
+.adm-editing [data-edit-item]:not(.about-photo) { position: relative; }
+
+.adm-active {
+  border-radius: 6px;
+  outline: 2px dashed var(--accent);
+  outline-offset: 8px;
+}
+
+.adm-active[data-field],
+.adm-active [data-field] {
+  border-radius: 4px;
+  cursor: text;
+}
+
+.adm-active [data-field]:hover { outline: 1px dashed var(--text-dim); outline-offset: 3px; }
+
+.adm-active[data-field]:focus,
+.adm-active [data-field]:focus {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 3px;
+}
+
+/* Pencils sit on the left, where the open panel doesn't cover them (over the image on work cards and the reel) */
+.adm-pencil {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+[data-edit-item]:hover > .adm-pencil,
+[data-edit-item]:focus-within > .adm-pencil,
+.adm-pencil:focus-visible { opacity: 1; }
+
+.adm-active > .adm-pencil { display: none; }
+
+.adm-pencil:hover { background: #fff; color: var(--bg); transform: scale(1.08); }
+
+/* Text items: pencil above the top-right corner, off the text */
+.hero-text > .adm-pencil,
+.section-intro > .adm-pencil,
+.about-text > .adm-pencil,
+.timeline-item > .adm-pencil,
+.toolkit-row > .adm-pencil,
+.footer-links > .adm-pencil,
+.contact-socials > .adm-pencil,
+.contact-alt > .adm-pencil { top: -38px; left: auto; right: 0; }
+
+/* Wide screens: put them in the left margin instead, since the right side can be under the panel */
+@media (min-width: 1100px) {
+  .hero-text > .adm-pencil,
+  .section-intro > .adm-pencil,
+  .about-text > .adm-pencil,
+  .contact-socials > .adm-pencil,
+  .contact-alt > .adm-pencil { top: 0; left: -50px; right: auto; }
+  .timeline-item > .adm-pencil { top: 24px; left: -50px; right: auto; }
+  .toolkit-row > .adm-pencil,
+  .footer-links > .adm-pencil { top: 50%; left: -48px; right: auto; margin-top: -17px; }
+}
+
+/* Touch screens have no hover, so keep pencils visible */
+@media (hover: none) {
+  .adm-pencil { opacity: 0.9; }
+}
+
+/* Done / More… buttons, floating just above the item being edited */
+.adm-inline-bar {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 0;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-alt);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-family: "Geologica", "Segoe UI", system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.5;
+}
+
+/* Work cards clip overflow, so the buttons go inside, over the image; and the card stops tilting while edited */
+.work-card > .adm-inline-bar { top: 10px; bottom: auto; left: 10px; }
+.work-card.adm-active,
+.work-card.adm-active:hover { transform: none; }
+
+.adm-group { margin: 6px 0 0; font-size: 1rem; font-weight: 800; }
+
+/* Panel entry opened from a pencil: clear the sticky header and flash briefly */
+.adm-entry,
+.adm-body { scroll-margin-top: 90px; }
+
+.adm-flash { animation: adm-flash 1.2s ease; }
+
+@keyframes adm-flash {
+  0%, 40% { border-color: var(--accent-orange); box-shadow: 0 0 0 3px rgba(255, 122, 51, 0.35); }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
+
+/* Theme tab: preset buttons with colour swatches, and the colour pickers */
+.adm-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+
+.adm-preset {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-preset:hover { border-color: var(--accent-orange); }
+.adm-preset.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.adm-swatches { display: flex; gap: 4px; }
+
+.adm-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(127, 127, 127, 0.4);
+}
+
+.adm-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+
+.adm-color { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; cursor: pointer; }
+
+.adm-root input[type="color"] {
+  flex: none;
+  width: 36px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+/* Links: address field with its "In footer" box beside it */
+.adm-link-row { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 12px; }
+.adm-check-small { font-size: 0.82rem; color: var(--text-dim); padding-bottom: 9px; }
+.adm-grow { flex: 1; }
+
+@media (max-width: 480px) {
+  .adm-colors { grid-template-columns: 1fr; }
+}
+
+/* Detached: a window over the page, dragged by its title bar and resized from the corner */
+.adm-root.adm-root--floating {
+  right: auto;
+  bottom: auto;
+  min-width: 320px;
+  min-height: 240px;
+  max-width: 100vw;
+  max-height: 100vh;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  resize: both;
+}
+
+.adm-root--floating .adm-top,
+.adm-root--floating .adm-card-head { cursor: move; user-select: none; }
+.adm-root--floating .adm-top button,
+.adm-root--floating .adm-card-head button { cursor: pointer; }
+.adm-root.is-dragging { transition: none; user-select: none; }
+
+/* Full screen: covers the whole page, with the forms kept to a readable width */
+.adm-root.adm-root--full { width: 100%; border-left: 0; box-shadow: none; }
+.adm-root--full .adm-screen { max-width: 920px; margin: 0 auto; }
+
+/* Detached or full screen, minimising hides the panel instead of sliding it off the right edge */
+.adm-root--floating.is-min,
+.adm-root--full.is-min { transform: none; opacity: 0; visibility: hidden; }
+
+/* Room for the extra window buttons when the panel is narrow */
+.adm-top,
+.adm-card-head { flex-wrap: wrap; }
+.adm-win-float,
+.adm-win-full { font-size: 1rem; }
+
+/* The panel keeps the text font for its own headings, whatever the site's heading font is */
+.adm-root h2,
+.adm-root h3 { font-family: inherit; }
+
+/* Page tab: the outline of sections */
+.adm-outline-list { display: grid; gap: 8px; }
+.adm-outline-row { margin-bottom: 0; transition: opacity 0.15s ease; }
+.adm-outline-row.is-fixed { border-style: dashed; }
+.adm-outline-row.is-hidden > .adm-entry-head .adm-entry-title { opacity: 0.45; }
+.adm-outline-row.is-dragging { opacity: 0.4; }
+.adm-outline-row.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+.adm-outline-row.drop-after { box-shadow: 0 3px 0 var(--accent); }
+.adm-outline-row.is-open { border-color: var(--accent); }
+
+.adm-handle {
+  flex: none;
+  width: 18px;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  line-height: 1;
+  text-align: center;
+  cursor: grab;
+  user-select: none;
+}
+
+.adm-outline-row.is-fixed .adm-handle { cursor: default; }
+.adm-outline-row > .adm-entry-head .adm-entry-title { flex: 1; }
+
+.adm-eye svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.adm-eye[aria-pressed="false"] { color: var(--accent-orange); }
+
+.adm-row-body { display: grid; gap: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.adm-row-foot { display: flex; justify-content: flex-end; }
+
+.adm-add {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+/* Site tab: the browser-tab icon as it looks now */
+.adm-favicon { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; flex: none; }
+
+/* Project pictures: one tidy strip of thumbnails; the clicked one gets its controls below */
+.adm-pictures { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.adm-picture {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.adm-picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.adm-picture:hover { border-color: var(--border); }
+.adm-picture.is-selected { border-color: var(--accent); }
+
+/* Not uploaded yet */
+.adm-picture-new {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-orange);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.adm-picture-tools { display: flex; align-items: center; gap: 8px; }
+
+/* A file input dressed as a button */
+.adm-file-btn { position: relative; cursor: pointer; }
+.adm-file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Phone preview: the page at phone width in a frame, beside the panel */
+.adm-phone {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(2, 3, 5, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.adm-phone.is-beside-panel { padding-right: min(560px, 100%); }
+
+.adm-phone-frame {
+  width: 390px;
+  max-width: calc(100% - 32px);
+  height: min(844px, calc(100vh - 110px));
+  padding: 10px;
+  border-radius: 40px;
+  background: #111;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.adm-phone-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 30px;
+  background: #fff;
+}
+
+.adm-win-phone svg,
+.adm-close svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  vertical-align: middle;
+}
+
+.adm-win-phone[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+/* Site tab: what a shared link looks like */
+.adm-share {
+  display: grid;
+  overflow: hidden;
+  max-width: 420px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.adm-share img,
+.adm-share-empty {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1200 / 630;
+  object-fit: cover;
+}
+
+.adm-share-empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  background: var(--bg);
+}
+
+.adm-share-text { display: grid; gap: 2px; padding: 10px 12px; font-size: 0.82rem; }
+.adm-share-text strong { font-size: 0.92rem; }
+.adm-share-host { color: var(--text-dim); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em; }
+.adm-share-text span:last-child { color: var(--text-dim); }
+
+/* Setup wizard */
+.adm-wizard-progress { display: flex; gap: 4px; }
+.adm-wizard-progress span { flex: 1; height: 4px; border-radius: 2px; background: var(--border); }
+.adm-wizard-progress .is-done { background: var(--accent); }
+.adm-wizard-progress .is-current { background: var(--accent-orange); }
+.adm-wizard-title { margin: 0; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
+.adm-wizard-choices { display: grid; gap: 8px; }
+
+.adm-wizard-choice {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-wizard-choice span { color: var(--text-dim); font-size: 0.85rem; }
+.adm-wizard-choice:hover { border-color: var(--accent-orange); }
+.adm-wizard-choice.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.adm-wizard-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.adm-wizard-next { margin: 0; padding-left: 18px; display: grid; gap: 8px; color: var(--text-dim); }
+
+/* Unused files: a scrolling list of ticks */
+.adm-files {
+  display: grid;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.adm-files .adm-check { align-items: baseline; }
+.adm-files .adm-path { flex: 1; }
+
+/* Updates: what's new since the installed version */
+.adm-notes { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--text-dim); font-size: 0.88rem; }
+.adm-notes strong { color: var(--text); }
