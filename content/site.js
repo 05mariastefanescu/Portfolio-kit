@@ -1,36 +1,40 @@
 // Site content. The admin panel rewrites this file when you save, so keep it valid JSON after the "=".
 window.SITE_CONTENT = {
   "site": {
-    "name": "Your Name",
-    "shortName": "",
+    "name": "Maria Stefanescu",
+    "shortName": "MS",
     "title": "",
     "description": "",
     "initials": "",
     "repo": {
-      "owner": "",
-      "repo": "",
+      "owner": "05mariastefanescu",
+      "repo": "Portfolio-kit",
       "branch": "main"
-    }
+    },
+    "favicon": "",
+    "shareImage": "",
+    "url": ""
   },
   "theme": {
-    "preset": "midnight",
-    "font": "Geologica",
-    "headingFont": "",
+    "preset": "violet",
+    "font": "Cormorant Garamond",
+    "headingFont": "Bricolage Grotesque",
     "radius": 14,
-    "colors": {}
+    "colors": {},
+    "customFonts": []
   },
   "categories": [
     {
-      "id": "category-1",
       "label": "Category one",
       "icon": "camera",
-      "color": ""
+      "color": "",
+      "id": "category-1"
     },
     {
-      "id": "category-2",
       "label": "Category two",
       "icon": "palette",
-      "color": ""
+      "color": "",
+      "id": "category-2"
     }
   ],
   "sections": {
@@ -44,13 +48,62 @@ window.SITE_CONTENT = {
     ],
     "removed": [],
     "work": {
-      "title": "Work"
+      "title": "Work",
+      "nav": "",
+      "inMenu": true,
+      "background": "alt",
+      "titleStyle": "large",
+      "titleSize": 100,
+      "categories": []
+    },
+    "about": {
+      "title": "",
+      "nav": "",
+      "inMenu": true,
+      "background": "alt",
+      "titleStyle": "large",
+      "titleSize": 100
+    },
+    "reel": {
+      "title": "",
+      "nav": "",
+      "inMenu": true,
+      "background": "main",
+      "titleStyle": "large",
+      "titleSize": 100
+    },
+    "experience": {
+      "title": "",
+      "nav": "",
+      "inMenu": false,
+      "background": "alt",
+      "titleStyle": "small",
+      "titleSize": 100
+    },
+    "toolkit": {
+      "title": "",
+      "nav": "",
+      "inMenu": false,
+      "background": "alt",
+      "titleStyle": "small",
+      "titleSize": 100
+    },
+    "contact": {
+      "title": "",
+      "nav": "",
+      "inMenu": true,
+      "background": "main",
+      "titleStyle": "large",
+      "titleSize": 100
+    },
+    "highlights": {
+      "title": ""
     }
   },
   "reel": {
     "youtube": ""
   },
-  "resume": "",
+  "resume": "assets/resume.pdf",
   "hero": {
     "role": "What you do",
     "intro": "A short introduction: who you are, what you make, and what you're looking for.",
@@ -59,7 +112,30 @@ window.SITE_CONTENT = {
     "backgroundVideo": "",
     "portrait": "",
     "layout": {
-      "style": "centered"
+      "style": "portrait",
+      "portraitSize": 100,
+      "nameOneLine": false,
+      "nameScale": 100,
+      "showRole": true,
+      "showIntro": true,
+      "showAvailability": true,
+      "showWorkButton": true,
+      "showContactButton": true,
+      "showResume": true,
+      "showMonitor": true,
+      "monitorSize": 100,
+      "monitorLabel": "Program",
+      "monitorStart": "random",
+      "monitorOrder": "featured",
+      "showTimeline": true,
+      "timelineSeconds": 36,
+      "timelineFps": 25,
+      "showExtraTracks": true,
+      "showTrackLabels": true,
+      "showTimecode": true,
+      "allowScrub": true,
+      "showGlow": true,
+      "overlay": 90
     }
   },
   "intros": {
@@ -68,9 +144,9 @@ window.SITE_CONTENT = {
     "contact": "Have a project in mind or just want to say hi? Send a message below."
   },
   "links": {
-    "email": "",
-    "instagram": "",
-    "linkedin": "",
+    "email": "05mariastefanescu@gmail.com",
+    "instagram": "https://www.instagram.com/mstalms/",
+    "linkedin": "https://www.linkedin.com/in/maria-stefanescu-474820304/",
     "youtube": "",
     "github": "",
     "facebook": ""
@@ -106,7 +182,8 @@ window.SITE_CONTENT = {
       "thumb": "",
       "thumbAlt": "",
       "links": [],
-      "videos": []
+      "videos": [],
+      "images": []
     },
     {
       "type": "category-2",
@@ -121,7 +198,8 @@ window.SITE_CONTENT = {
       "thumb": "",
       "thumbAlt": "",
       "links": [],
-      "videos": []
+      "videos": [],
+      "images": []
     }
   ],
   "experience": [
@@ -152,5 +230,14 @@ window.SITE_CONTENT = {
     "reel": true
   },
   "workGrids": [],
-  "customSections": []
+  "customSections": [],
+  "languages": {
+    "main": "en",
+    "available": [
+      "en",
+      "ro",
+      "fr"
+    ],
+    "ui": {}
+  }
 };
