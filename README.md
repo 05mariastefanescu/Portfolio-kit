@@ -37,8 +37,9 @@ it theirs without touching code. See [Making a copy for someone else](#making-a-
    with small titles so they read as part of Work.
 6. **Contact** (`#contact`): message form, email, LinkedIn and social icons.
 
-All sections below the top section can be reordered, renamed, restyled, hidden or removed in the
-admin panel's **Page** tab, which can also add Text sections and more Work grids.
+All sections can be reordered in the admin panel's **Page** tab, the top section included (it
+fades into whatever comes after it); the others can also be renamed, restyled, hidden, removed or
+moved to another page, and new ones added.
 
 ## Admin panel
 
@@ -57,8 +58,10 @@ in over the page. Press it again or click × to close it.
 
 **Setup wizard:** on a fresh copy (the name is still empty or "Your Name"), unlocking the panel
 opens seven short steps: name and intro, a look, the top-section style, the kinds of work (which
-become the categories), contact details and languages. The page behind shows the result as you
-go; nothing is published until Save & publish. Each step can be skipped, and the Site tab has
+become the categories), contact details and languages. The look step asks **Dark, Light or
+Both** (big cards), then has the Theme tab's colours and fonts (schemes, colour swatches, font
+samples, your own fonts). The page behind
+shows the result as you go; nothing is published until Save & publish. Each step can be skipped, and the Site tab has
 **Run setup again**.
 
 The token is encrypted with your password (PBKDF2-SHA256 with 600,000 rounds, then
@@ -67,57 +70,163 @@ kept in that browser. Your password is never stored anywhere. Do this once on yo
 once on your laptop; after that, the password alone unlocks the panel. If you clear the
 browser's site data, just set it up again.
 
+**Recovery code:** right after setup the panel shows a recovery code once
+(`XXXX-XXXX-XXXX-XXXX-XXXX-XXXX`); keep it on paper or in a password manager. If you forget the
+password, **Forgot your password?** on the unlock screen takes the code and a new password. Like
+the password, the code only works in the browser that was set up (only a second encrypted copy of
+the token is kept there, never the code). The Site tab's **Recovery code** box makes a new one (the
+old one stops working). Without a code, **Forgot your password?** shows how to set the panel up
+again with a new GitHub token; nothing on the site is lost either way.
+
 ### Using it
 - **Tabs:** **Page** (everything on the page), **Site** (who it belongs to and where it links to)
-  and **Theme** (colours, fonts, corners).
-- **Page:** the page as an outline, from the top section to the footer. Click a row to edit
+  and **Theme** (colours, fonts, corners). Long help texts show their first sentence; **more**
+  shows the rest.
+- **Pages:** besides the home page, **+ New page** (top of the Page tab) makes a page with its own
+  address (`?page=services`), a link in the menu and its own sections. Click a page's name to see
+  and edit it (links in the site's menu switch pages too, without reloading). Set its title, menu
+  label, address and place in the menu, or delete it (its sections move to the home page). A
+  section moves to another page with **On the page** in its settings. Stored as `pages` in
+  `content/site.js`; the home page's sections stay in `sections.order`.
+- **Page:** the page shown as an outline, from the top section to the footer. Click a row to edit
   that section right there; the page behind scrolls to it. Drag ⠿ (or use the arrows) to change
-  the order, and use the eye to show or hide a section. Every section's editor starts with the
-  same settings: title, menu label, "show in the menu", background, and title style and size
-  (*large* with a dot, or *small* with an accent line). A small-titled section on the same
-  background as the one above sits right under it as part of it: that's how Experience and
-  Toolkit follow Work. Below that come the section's own content and ticks for its parts
-  (e.g. the About photo, or the contact form).
-- **Adding sections:** **+ Add section** adds a **Text** section (title, text, picture below or
-  beside it, a button) or a **Work grid**. Each Work section shows the projects from the
-  categories ticked under "Projects shown here" (nothing ticked: all of them), with its own intro,
-  highlights slider and filter buttons; projects are edited inside the Work section they show up
-  in. Built-in sections (About, Showreel, Work, Experience, Toolkit, Contact) can be taken off
-  with **Remove from the page**; their content is kept and **+ Add section** puts them back.
+  the order, and use the eye to show or hide a section. An open section has three tabs:
+  **Content** (its title, then its text, pictures, projects…), **Layout** (below) and **Settings**:
+  menu label, "show in the menu", a **link name** (e.g. `services`, so the section's address ends
+  in `#services` instead of its code name), which page it's on, and duplicate or delete. Under
+  **Layout**, its look: background (page, second, or your own colour or picture, with the text
+  turning light or dark to read on it; with both versions for visitors, a ☾ and a ☀ colour, the
+  second made from the first until changed (`bgColorOther`), and for a picture **In the light
+  version: Keep it dark / Lighten it** (`bgOther`) with an optional second picture
+  (`bgImageOther`)), title style and size (*large* with a dot, or *small*
+  with an accent line), width (narrow, normal, wide, full), space around (compact, normal,
+  roomy) and **Show on** (all screens, computers only, phones only; its menu link follows). A
+  small-titled section on the same background as the one above sits right under it as part of
+  it: that's how Experience and Toolkit follow Work. Below that come the section's own content
+  and ticks for its parts (e.g. the About photo, or the contact form).
+- **Layout:** sections with more than one arrangement show little drawings to pick from (also
+  under ▦ in the section's bar on the page): About with the photo right, left or above; Showreel
+  and Video with the video below or beside the title; Contact with the form below or beside;
+  Work with cards fitting the screen or 2, 3 or 4 per row; Testimonials side by side or one big
+  quote per row; a Text section's picture below, above, right or left. Stored as
+  `sections.<id>.layout` (a Text section: its `imagePlace`).
+- **Parts:** a section's title, intro, text, video, list… can be put in another order and each
+  aligned (left, centre, right), given more or less space above, or made narrower. In the
+  **Layout** tab under **Parts**, or on the page: in the section open in the panel, hovering a part
+  shows its name, and clicking it (or into its text) puts a small toolbar above it: ↑ ↓ to move it,
+  one alignment button that goes as it was → left → centre → right, space above (− +), width and
+  ↺. **Reset parts** puts them all back. Stored as
+  `sections.<id>.blockOrder` and `blockLook`; an untouched section stores nothing, and on
+  phones the parts stay one under the other.
+- **Adding sections:** **+ Add section** offers:
+  - **Text:** title, text with simple formatting (the B, I, Link and List buttons write
+    `**bold**`, `*italic*`, `[label](https://…)` and `- ` lists), one or two columns, left or
+    centred, a picture below or beside it, and any number of buttons (filled or outline).
+  - **Gallery:** pictures in a grid (square, landscape or their own shape, 2–5 per row) with
+    optional captions; clicking one opens it big, with arrows through the rest.
+  - **Video:** one video from YouTube, an uploaded file or a direct link, with a caption.
+  - **Testimonials:** quotes with a name, role and small photo.
+  - **Logos:** client logos, in colour, grey until pointed at, or all white or all black.
+  - **Numbers:** a few big figures (120+ videos edited).
+  - **FAQ:** questions that open to show their answer.
+  - **Call to action:** one big line, a line under it, and buttons.
+  - **Work grid:** each Work section shows the projects from the categories ticked under
+    "Projects shown here" (nothing ticked: all of them), with its own intro, highlights slider
+    and filter buttons. While editing, every category it may show has a filter button (faded
+    until it has a project): pick one and **+ Add project** adds a project of that kind. Each
+    project card's bar has a category picker.
+
+  The entries in Testimonials, Logos, Numbers and FAQ fold to one line each; drag ⠿ to move
+  them, ⧉ duplicates one. **Duplicate section** copies an added section right under it. Built-in
+  sections (About, Showreel, Work, Experience, Toolkit, Contact) can be taken off with **Remove
+  from the page**; their content is kept and **+ Add section** puts them back.
+- **Projects:** edited inside the Work section they show up in, or all together under **All
+  projects** at the top of the Page tab (with a category filter). Drag ⠿ to reorder, search
+  when there are more than four, ⧉ to duplicate, and **+ Add a project at the end** below the
+  list. A project ticked **Draft** only shows while the panel is open (marked "Draft"), not on
+  the live site or in the top-section monitor.
+- **Undo / redo (↶ ↷):** in the top bar, or Ctrl+Z and Ctrl+Shift+Z (Ctrl+Y) when you're not in
+  a text box. Each click is a step, typing a step per pause; up to 100 steps, until the panel
+  closes. Text boxes keep the browser's own undo for what's typed in them.
 - **Site:** your name, page title and description, the link preview picture and site address, the browser-tab icon (letters in your theme
   colours, or upload your own square PNG, SVG or .ico), the languages, the GitHub repository, your
   email and social links (and which ones are in the footer), and analytics.
-- **Theme:** six presets (four dark, two light) as a starting point, then any colour can be
-  changed: backgrounds, cards, borders, text, the two accent colours, text on buttons, and the
-  top section's background and text. "Light or dark" swaps the backgrounds and text colours and
-  keeps the accents. The top section stays dark on light themes so its text reads on photos and
-  video. **Your colour schemes** keeps colour combinations to switch back to: name the current
-  colours and press **Save current colours**; click a saved scheme to use it again (stored as
-  `theme.saved`, so they're there on every computer). Also the text and heading fonts and corner
-  roundness. Fonts come from a Google Fonts list,
-  or upload your own font files (.woff2, .woff, .ttf, .otf; saved in `assets/fonts/`): files with
-  the same name form one family, each with its weight and style (stored as `theme.customFonts`).
+- **Contact form** (Site tab, under Links): by default, sending opens the visitor's email app with
+  the message filled in. To have messages sent from the page instead, pick a free form service and
+  paste its key: **Web3Forms** (250 a month: type your email on web3forms.com and the access key
+  arrives in that inbox, no account) or **Formspree** (50 a month: the ID at the end of your form's
+  `formspree.io/f/…` address). **Send a test message** checks it. Visitors see "Sending…", then a
+  thank-you; if sending fails, they're offered to send it by email instead, with their message in
+  it. A hidden field catches spam robots. Stored as `contactForm` (`service`, `key`); the key is
+  meant to be public.
+- **Theme:** one **Colours** box. A row of scheme chips holds the six presets (four dark, two
+  light) and your saved schemes: hover one to see it on the page, click to keep it. Below are the
+  four main colours (background, text, two accents) and, under **More colours**, the rest
+  (sections, cards, lines, soft text, text on buttons, the top section's background and text).
+  The page recolours while a colour is dragged. **Visitors see: ☾ Dark / ☀ Light / ◐ Both**.
+  Dark or Light is one version (switching makes the other version of the scheme). With **Both**
+  (`theme.switchable`), visitors first see the version their device prefers, and a ☾/☀ button in
+  the menu bar (left of the language switch) switches; **Menu button** picks its look: an icon, the
+  icon with a word (the version it switches to), or a sliding switch (`theme.modeButton`); the browser remembers it, and a line at the top of `index.html` applies a
+  remembered choice before the page shows, so it doesn't flash. The second version is made from
+  the first in the same tint, with the accents made lighter or darker until they read on its
+  background; a ☾ Dark and a ☀ Light row of colours fine-tune each (the second's changes are
+  `theme.other`), and the page shows the version last touched. Turning on Both lists the sections
+  with their own background, to check. The top section stays dark in both versions so its text
+  reads on photos and video. Colours changed by hand show as a **Your edits** chip, kept when you try another
+  scheme; **+ Save** names them as a scheme (stored as `theme.saved`, so they're there on every
+  computer), and ↺ goes back to the scheme's own colours. Also the text and heading fonts, each shown
+  written in itself to pick from (a Google Fonts list, plus your own under **+ Your own font**:
+  upload font files (.woff2, .woff, .ttf, .otf; saved in `assets/fonts/`): files with
+  the same name form one family, each with its weight and style (stored as `theme.customFonts`)).
+  A tick turns off the full stop in the accent colour after section titles (`theme.titleDot`).
+  **Corners** and **Mouse effect** are folded to one line saying how they're set; click to change.
+  Their sliders restyle the page while dragged, like the colours.
+- **Pictures shrink on upload:** a photo bigger than 2400 px (or heavier than 500 KB) is scaled
+  down and saved again in its own format (JPEG, WebP or PNG) before it's uploaded, which also
+  drops the camera's hidden details (place, device). GIFs, SVGs and animated pictures stay as
+  they are, and so does a picture that wouldn't get clearly smaller.
 - **Removing things:** the eye hides a whole section, and the ticks in a section's editor hide its
   parts. Nothing is deleted; show it again to bring it back. Menu links pointing to a hidden
-  section are hidden too. Stored as `hidden` in `content/site.js`. When editing on the page,
-  **Hide** takes that part off and **Delete** removes a project, experience entry or toolkit row.
-  An emptied text disappears from the page instead of leaving a gap.
+  section are hidden too. Stored as `hidden` in `content/site.js`. While the panel is open,
+  hidden sections stay on the page, faded, so they can be shown again from there.
+  An emptied text disappears from the live page instead of leaving a gap (while editing it
+  shows "Empty: click to write").
 - **Videos:** paste a YouTube link (recommended), upload a video file (up to 50 MB), or
   paste a direct URL to a video hosted on your own storage/CDN for anything bigger or
   that can't go on YouTube (see "Video file size" under Work cards below). YouTube
   cards use YouTube's own thumbnail unless you upload one.
-- **Edit on the page:** while the panel is open, hovering an item shows a ✎ button. Press
-  it to unlock that item's text and type on the page: the top section, the section intro
-  lines, work card titles and teasers, the About bio and skills, experience entries and
-  toolkit rows. **Done**, Enter, Esc or clicking elsewhere locks it again; **More…** opens
-  all its options in the panel (videos, thumbnails, descriptions, buttons). On the
-  showreel, the photo and the social/email links, ✎ goes straight to the panel.
+- **Edit on the page:** while the panel is open, the page is an editor too:
+  - **Text:** click any text to type in it: your name, section titles, intros, project titles
+    and teasers, the bio and skills, timeline and toolkit entries, the contact form's title
+    (saved as that language's interface text, `languages.ui`), and the text of the added
+    sections. Enter finishes, Esc puts back what was there, clicking elsewhere finishes. In a
+    bio paragraph Enter starts the next paragraph. Text with formatting (Text sections, FAQ
+    answers, quotes) shows as typed, with its `**`, while you edit it; Enter is a new line, an
+    empty line a new paragraph, and Ctrl+Enter finishes. The page doesn't redraw while you
+    type, so nothing gets lost.
+  - **Sections:** hover one for its bar: move it up or down, hide it, duplicate it, delete it,
+    or ⚙ to open it in the panel. **+ Add section** on a section's top edge adds a new one
+    right there.
+  - **Lists:** hover a project, timeline entry, toolkit row, skill, paragraph, quote, number,
+    question, picture or logo for a small bar: move it, duplicate it, delete it (projects also
+    have **Draft**). **+ Add …** at the end of each list adds one and puts you straight into
+    typing it.
+  - **Page and panel follow each other:** clicking in a section opens its row in the panel (and
+    a project's form when you click a project), and the section open in the panel is outlined
+    on the page.
+  - The showreel, the photo and the social/email links have a ✎ that opens them in the panel.
+- **Preview (eye button in the top bar):** the page as visitors see it, without bars, outlines
+  or draft projects. The panel slides away; **Back to editing** at the bottom (or Esc, or the
+  Admin tab) brings everything back.
 - **Phone preview (📱):** shows the page at phone width in a frame beside the panel, with your
   unsaved changes, following every edit. Opening a section in the Page tab scrolls it there too.
-- **Detach (⧉) and full screen (⤢):** the buttons next to – turn the panel into a window you
-  can drag by its title bar and resize from its bottom-right corner, or spread it over the whole
-  page. Press the same button again to dock it back on the right. Each browser remembers its own
-  choice and the window's size and position.
+- **Docked (the standard):** the panel sits beside the page, and the page makes room for it, so
+  nothing is hidden under it. Drag the panel's inner edge to make it wider or narrower.
+- **⋯ menu (top bar):** **Dock on the left/right side** (⇆; the editing bars on the page swap sides
+  too), **Detach** (⧉: a window you drag by its title bar and resize from any edge or corner),
+  **Full screen** (⤢) and **Lock**. Choose Detach or Full screen again to dock. Each browser
+  remembers its own choice, the docked width and the window's size and position.
 - **Minimise (–):** slides the panel off to the right and leaves an **Admin** tab on the
   edge (with an orange dot if there are unsaved changes). Click the tab, a ✎, or the
   shortcut to bring it back.
@@ -223,6 +332,20 @@ screen, and never moves for visitors who reduce motion.
   videos: **+ Add pictures** takes several files at once, and clicking one shows its description,
   ← → to reorder and ✕ to remove
 - `links`: up to two pop-up buttons, each `{ "label": "...", "url": "..." }`
+- `slug` (optional): the end of the project's link, `?project=<slug>`. Without it the link is made
+  from the title (lowercase, dashes; a second project with the same name gets `-2`). Set one in the
+  admin panel ("Link to this project", with **Copy link**) before sharing a link, so it keeps
+  working when the title changes.
+
+**Project links:** opening a project puts its link in the address bar, so it can be shared, and the
+back button closes it. `projectView` (any Work section in the admin panel, "Opening a project")
+chooses how: `"popup"` (the default) over the page, or `"page"`: the project takes the place of the
+sections, between the menu and the footer, with a Back button. An old link to a project that no
+longer exists shows the page with a short note.
+
+**404 page:** `404.html` is what GitHub Pages shows for an address that doesn't exist. It finds the
+home page (at the domain's root, or in the repository's folder) and goes there, where a note says
+the page didn't exist.
 
 Project files live in `assets/work/`.
 
@@ -339,7 +462,12 @@ All effects are in `js/main.js`, and all respect the visitor's "reduce motion" s
   becomes a circle saying "View", or "Play" for projects with videos; the words are interface
   text, so they're translated), **Spotlight** (the normal pointer with a soft accent glow following
   it; size, strength, colour) or **Your own pointer** (an uploaded PNG/SVG, any size, centred or
-  pointing with its top-left corner). **Magnetic buttons** can be added to any of them. Only on
+  pointing with its top-left corner). Your own pointer can also be a **cursor file**: `.cur`,
+  animated `.ani` (Windows), or a file from a Linux cursor theme (Xcursor, e.g. `left_ptr` from
+  the theme's `cursors` folder). Browsers can't show these, so the panel reads the file when it's
+  uploaded and saves its frames side by side in one PNG, with each frame's time and the pixel
+  that points (`theme.cursor.frames`); the page plays the frames at their own speed and points
+  with that pixel ("Where the cursor file says"). **Magnetic buttons** can be added to any of them. Only on
   mouse or trackpad devices; touch devices and visitors who reduce motion keep the normal pointer.
 - **Editing timeline and preview monitor:** the strip at the bottom of the top section
   (`#hero-timeline`). Its V1 track has one clip per uploaded video in Work (featured projects
@@ -407,14 +535,23 @@ and write** on portfolio-kit only, and add it as an Actions secret named `KIT_TO
 (Settings → Secrets and variables → Actions). The Action can also be run by hand from the Actions
 tab (**Run workflow**).
 
-**How a site updates.** Site tab → **Updates** → **Check for updates** compares the site's
+**How a site updates.** When the admin panel is unlocked, it checks portfolio-kit in the background;
+if there's a newer version, a bar at the top of the panel says so ("Version 10 is available: 3
+changes"), and clicking it opens the Site tab at **Updates** with the changes listed. The same check
+can be run by hand: Site tab → **Updates** → **Check for updates** compares the site's
 `kit.json` with portfolio-kit's and lists what changed. **Update** copies the code files from the
 kit into the site's repository in one commit; the site's content, uploads, translations and
 settings stay as they are, and `index.html` gets the site's own title, icon and theme written back
-in. Reading the kit needs no extra permission (it's public), and the site's own token is enough
+in, and its code files are loaded with the new version number (`js/main.js?v=10`…) so browsers
+fetch the new code right away. Reading the kit needs no extra permission (it's public), and the site's own token is enough
 to install. On the source site itself, the box says that it publishes the kit instead.
 
 When adding a new code file, add it to `files` in `kit.json` so it's published and installed too.
+
+An update changes the site's repository on GitHub, not a copy on someone's computer: a local
+preview (for example VS Code's Live Server) shows the new version only after pulling (GitHub
+Desktop: **Fetch origin**, then **Pull origin**). Pull before editing files locally, so an old copy
+doesn't undo the update.
 
 ## Making a copy for someone else
 

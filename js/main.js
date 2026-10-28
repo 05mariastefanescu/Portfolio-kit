@@ -1,3 +1,8 @@
+// The version index.html loads the code with (?v=…, added by updates): the admin panel's files get the same
+const CODE_VERSION = (() => {
+  try { return document.currentScript ? new URL(document.currentScript.src).search : ''; } catch { return ''; }
+})();
+
 // Mobile nav toggle
 const navToggle = document.getElementById('nav-toggle');
 const mainNav = document.getElementById('main-nav');
@@ -136,11 +141,16 @@ function latestSave() {
 function showSaveNote(age) {
   const minutes = Math.round(age / 60000);
   const when = minutes < 1 ? 'just now' : `${minutes} min ago`;
+  showNote(minutes < 10
+    ? `Showing your latest save (${when}). The live site is still updating; visitors see it within a few minutes.`
+    : `Showing your latest save (${when}), but the live site still has an older version. Check that GitHub Pages is publishing: your repository \u2192 Actions, or Settings \u2192 Pages.`);
+}
+
+// A small note at the bottom of the screen, with a button to close it
+function showNote(text) {
   const note = el('div', 'save-note');
   note.setAttribute('role', 'status');
-  note.appendChild(el('span', null, minutes < 10
-    ? `Showing your latest save (${when}). The live site is still updating; visitors see it within a few minutes.`
-    : `Showing your latest save (${when}), but the live site still has an older version. Check that GitHub Pages is publishing: your repository \u2192 Actions, or Settings \u2192 Pages.`));
+  note.appendChild(el('span', null, text));
   const close = el('button', null, '\u00D7');
   close.type = 'button';
   close.setAttribute('aria-label', 'Close');
@@ -205,7 +215,7 @@ function applyUiText(root) {
   root.querySelectorAll('[data-i18n]').forEach((node) => {
     const text = t(node.dataset.i18n);
     // Re-splitting an unchanged heading would restart its letters for nothing
-    if (node.classList.contains('reveal')) { if (node.getAttribute('aria-label') !== text) setRevealText(node, text); }
+    if (node.classList.contains('reveal')) { if (node.dataset.raw !== text) setRevealText(node, text); }
     else node.textContent = text;
   });
   root.querySelectorAll('[data-i18n-label]').forEach((node) => node.setAttribute('aria-label', t(node.dataset.i18nLabel)));
@@ -341,6 +351,14 @@ function field(node, path) {
   return node;
 }
 
+// A field that may be empty: while editing, it says what goes there (only shown in the admin panel)
+function blankable(node, path, placeholder) {
+  field(node, path);
+  node.dataset.placeholder = placeholder;
+  node.classList.toggle('is-empty', !String(node.textContent || '').trim());
+  return node;
+}
+
 function youtubeEmbed(id, title, autoplay) {
   const iframe = document.createElement('iframe');
   iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}${autoplay ? '?autoplay=1' : ''}`;
@@ -451,7 +469,7 @@ function projectBody(item, index, className, teaserClass) {
     el('span', 'card-tag', typeLabel(item.type)),
     field(el('h3', null, item.title), `work.${index}.title`),
     details.length ? el('p', 'card-meta', details.join(' · ')) : null,
-    field(el('p', teaserClass, item.teaser), `work.${index}.teaser`),
+    field(formatted(el('p', teaserClass), item.teaser), `work.${index}.teaser`),
     el('span', 'view-more', t(count > 1 ? 'work.watchMany' : count ? 'work.watch' : pictures ? 'work.viewPictures' : 'work.details')),
   ].filter(Boolean));
   return body;
@@ -463,13 +481,13 @@ function opensModal(container, selector) {
     const target = e.target.closest(selector);
     if (!target) return;
     target.querySelectorAll('.thumb-preview').forEach((v) => v.pause());
-    openModal(target);
+    openProject(Number(target.dataset.index), { card: target });
   });
   container.addEventListener('keydown', (e) => {
     const target = e.target.closest(selector);
     if (target && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
-      openModal(target);
+      openProject(Number(target.dataset.index), { card: target });
     }
   });
 }
@@ -550,15 +568,19 @@ function applyFilter(g) {
   });
 }
 
-// entries: [{ item, index }] for this grid (index = place in content.work, used by the pop-up and editing)
-function renderGrid(g, entries, settings) {
-  // Filter buttons: only worth showing with two or more categories in use
+// entries: [{ item, index }] for this grid (index = place in content.work, used by the pop-up and editing);
+// shown: the categories this grid may show
+function renderGrid(g, entries, settings, shown = categories) {
+  // Filter buttons: only worth showing with two or more categories in use. While editing, every category
+  // the grid may show gets one (empty ones faded), so a project can be added straight into it.
   const used = categories.filter((cat) => entries.some(({ item }) => categoryOf(item.type).id === cat.id));
-  if (g.filter !== 'all' && !used.some((cat) => cat.id === g.filter)) g.filter = 'all';
+  const buttons = isEditing() ? shown : used;
+  if (g.filter !== 'all' && !buttons.some((cat) => cat.id === g.filter)) g.filter = 'all';
   g.bar.querySelectorAll('.filter-btn').forEach((btn) => btn.remove());
-  g.bar.hidden = used.length < 2;
-  [['all', t('work.all')], ...used.map((cat) => [cat.id, typeLabel(cat.id)])].forEach(([id, label]) => {
-    const btn = el('button', `filter-btn${id === g.filter ? ' is-active' : ''}`, label);
+  g.bar.hidden = buttons.length < 2;
+  [['all', t('work.all')], ...buttons.map((cat) => [cat.id, typeLabel(cat.id)])].forEach(([id, label]) => {
+    const empty = id !== 'all' && !used.some((cat) => cat.id === id);
+    const btn = el('button', `filter-btn${id === g.filter ? ' is-active' : ''}${empty ? ' is-empty' : ''}`, label);
     btn.type = 'button';
     btn.dataset.filter = id;
     btn.setAttribute('role', 'tab');
@@ -568,11 +590,13 @@ function renderGrid(g, entries, settings) {
 
   // Every project as an equal card, in content order (featured ones also get a slide above)
   g.cards.innerHTML = '';
+  g.cards.dataset.entries = 'work';
   entries.forEach(({ item, index }) => {
-    const card = el('article', 'work-card');
+    const card = el('article', item.draft ? 'work-card is-draft' : 'work-card');
     card.dataset.type = categoryOf(item.type).id;
     card.dataset.index = index;
     card.dataset.editItem = `work.${index}`;
+    card.dataset.entry = `work.${index}`;
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
     card.setAttribute('aria-haspopup', 'dialog');
@@ -648,21 +672,30 @@ function renderExtraGrids(list) {
   });
 }
 
+// Draft projects stay off the live site; while the admin panel is open (and not previewing) they show, marked
+const isEditing = () => document.documentElement.classList.contains('adm-editing') && !document.documentElement.classList.contains('adm-previewing');
+const showDrafts = isEditing;
+
 // All grids on the page get their projects
 function renderGrids(content) {
   const work = content.work || [];
   const sections = content.sections || {};
-  const entries = work.map((item, index) => ({ item, index }));
+  const entries = work.map((item, index) => ({ item, index })).filter(({ item }) => !item.draft || showDrafts());
   document.querySelectorAll('main > section.work').forEach((section) => {
     if (!grids.has(section.id)) grids.set(section.id, createGrid(section));
     const allowed = ((sections[section.id] || {}).categories || []).filter((id) => categories.some((c) => c.id === id));
-    renderGrid(grids.get(section.id), allowed.length ? entries.filter(({ item }) => allowed.includes(categoryOf(item.type).id)) : entries, content.highlights);
+    renderGrid(grids.get(section.id), allowed.length ? entries.filter(({ item }) => allowed.includes(categoryOf(item.type).id)) : entries, content.highlights,
+      allowed.length ? categories.filter((cat) => allowed.includes(cat.id)) : categories);
   });
 }
 
 function renderReel(reel) {
   const id = reel && reel.youtube;
   reelFrame.dataset.editItem = 'reel';
+  // Same video as before: keep the player (rebuilding it reloads it, e.g. while editing in the admin panel)
+  const key = `${id || ''}|${currentLang}`;
+  if (reelFrame.dataset.key === key && reelFrame.querySelector('iframe, .reel-placeholder')) return;
+  reelFrame.dataset.key = key;
   reelFrame.innerHTML = '';
   if (id) {
     const iframe = youtubeEmbed(id, t('reel.title'), false);
@@ -678,10 +711,23 @@ function renderAbout(about) {
   const bio = document.getElementById('about-bio');
   bio.parentElement.dataset.editItem = 'about';
   bio.innerHTML = '';
-  (about.paragraphs || []).forEach((text, i) => { if (text && text.trim()) bio.appendChild(field(el('p', null, text), `about.paragraphs.${i}`)); });
+  // Lists the admin panel can change on the page (data-entries; data-axis="y": one under the other)
+  Object.assign(bio.dataset, { entries: 'about.paragraphs', axis: 'y' });
+  (about.paragraphs || []).forEach((text, i) => {
+    // An empty paragraph only shows while editing, to be typed in
+    if (!(text && text.trim()) && !isEditing()) return;
+    const p = field(formatted(el('p', text && text.trim() ? null : 'is-empty'), text), `about.paragraphs.${i}`);
+    p.dataset.entry = `about.paragraphs.${i}`;
+    bio.appendChild(p);
+  });
   const skills = document.getElementById('about-skills');
   skills.innerHTML = '';
-  (about.skills || []).forEach((skill, i) => skills.appendChild(field(el('span', 'skill-tag', skill), `about.skills.${i}`)));
+  skills.dataset.entries = 'about.skills';
+  (about.skills || []).forEach((skill, i) => {
+    const tag = field(el('span', 'skill-tag', skill), `about.skills.${i}`);
+    tag.dataset.entry = `about.skills.${i}`;
+    skills.appendChild(tag);
+  });
   // No photo set: the text takes the full width (same as hiding the photo)
   const photo = document.getElementById('about-photo-img');
   if (about.photo) photo.src = assetUrl(about.photo);
@@ -691,20 +737,22 @@ function renderAbout(about) {
 function renderExperience(entries) {
   const timeline = document.getElementById('timeline');
   timeline.innerHTML = '';
+  Object.assign(timeline.dataset, { entries: 'experience', axis: 'y' });
   entries.forEach((entry, i) => {
     const li = el('li', 'timeline-item');
     li.dataset.editItem = `experience.${i}`;
+    li.dataset.entry = `experience.${i}`;
     const h3 = el('h3');
-    h3.appendChild(field(el('span', null, entry.role), `experience.${i}.role`));
-    if (entry.org) {
+    h3.appendChild(blankable(formatted(el('span'), entry.role), `experience.${i}.role`, 'Role'));
+    if (entry.org || isEditing()) {
       h3.appendChild(document.createTextNode(' '));
-      h3.appendChild(field(el('span', 'timeline-org', entry.org), `experience.${i}.org`));
+      h3.appendChild(blankable(el('span', 'timeline-org', entry.org), `experience.${i}.org`, 'Company or project'));
     }
-    // Empty date or description: left out instead of an empty line
+    // Empty date or description: left out instead of an empty line (while editing: a spot to fill in)
     li.append(...[
-      entry.date ? field(el('span', 'timeline-date', entry.date), `experience.${i}.date`) : null,
+      entry.date || isEditing() ? blankable(el('span', 'timeline-date', entry.date), `experience.${i}.date`, 'Dates') : null,
       h3,
-      entry.text ? field(el('p', null, entry.text), `experience.${i}.text`) : null,
+      entry.text || isEditing() ? blankable(formatted(el('p'), entry.text), `experience.${i}.text`, 'What you did') : null,
     ].filter(Boolean));
     timeline.appendChild(li);
   });
@@ -713,9 +761,11 @@ function renderExperience(entries) {
 function renderToolkit(rows) {
   const toolkit = document.getElementById('toolkit-list');
   toolkit.innerHTML = '';
+  Object.assign(toolkit.dataset, { entries: 'toolkit', axis: 'y' });
   rows.forEach((row, i) => {
     const wrap = el('div', 'toolkit-row');
     wrap.dataset.editItem = `toolkit.${i}`;
+    wrap.dataset.entry = `toolkit.${i}`;
     const dd = el('dd');
     (row.tools || []).forEach((tool, j) => dd.appendChild(field(el('span', 'skill-tag', tool), `toolkit.${i}.tools.${j}`)));
     wrap.append(field(el('dt', null, row.label), `toolkit.${i}.label`), dd);
@@ -728,7 +778,8 @@ function renderTexts(content) {
   document.querySelectorAll('[data-text]').forEach((node) => {
     const value = node.dataset.text.split('.').reduce((obj, key) => (obj ? obj[key] : undefined), content);
     if (typeof value === 'string') {
-      node.textContent = value;
+      node.textContent = '';
+      formatted(node, value);
       // Emptied in the admin panel: take it off the page instead of leaving a gap
       node.classList.toggle('is-empty', !value.trim());
     }
@@ -874,9 +925,9 @@ const heroMonitor = document.getElementById('hero-monitor');
 const monitorPlayers = [...heroMonitor.querySelectorAll('video')];
 const monitorTitle = document.getElementById('monitor-title');
 const monitorTc = document.getElementById('monitor-tc');
-// Stills instead of video for visitors who reduce motion or ask to save data
+// Stills instead of video for visitors who reduce motion, ask to save data or are on a slow connection
 const monitorStill = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  || Boolean(navigator.connection && navigator.connection.saveData);
+  || Boolean(navigator.connection && (navigator.connection.saveData || ['slow-2g', '2g', '3g'].includes(navigator.connection.effectiveType)));
 let reelSources = [];
 let timelineClips = [];
 let timelineKey = '';
@@ -884,9 +935,10 @@ let playheadEl = null;
 let timecodeEl = null;
 let currentReel = -1;
 
-// Uploaded videos from Work, featured projects first (YouTube can't play in the monitor)
+// Uploaded videos from Work, featured projects first (YouTube can't play in the monitor). A video's
+// lighter copy (clip.preview: smaller, no sound needed) plays here when it has one; the pop-up plays the video.
 function reelFromWork(items) {
-  const ordered = items.map((item, index) => ({ item, index }));
+  const ordered = items.map((item, index) => ({ item, index })).filter(({ item }) => !item.draft);
   if (heroSettings.monitorOrder === 'featured') {
     ordered.sort((a, b) => Number(Boolean(b.item.featured)) - Number(Boolean(a.item.featured)));
   }
@@ -894,7 +946,7 @@ function reelFromWork(items) {
     .flatMap(({ item }) => projectVideos(item)
       .filter((clip) => clip.video && safeUrl(clip.video) && !clip.hideInMonitor)
       .map((clip) => ({
-        src: assetUrl(clip.video),
+        src: assetUrl(clip.preview && safeUrl(clip.preview) ? clip.preview : clip.video),
         poster: clip.thumb ? assetUrl(clip.thumb) : coverImage(item),
         name: clip.title || item.title,
         label: clip.title ? `${item.title} · ${clip.title}` : item.title,
@@ -1120,13 +1172,16 @@ function applyRemovedParts(hidden) {
   const off = hidden || {};
   document.querySelectorAll('[data-part]').forEach((node) => node.classList.toggle('is-removed', Boolean(off[node.dataset.part])));
   document.querySelectorAll('a[href^="#"]').forEach((link) => {
-    const target = link.getAttribute('href').length > 1 && document.getElementById(link.getAttribute('href').slice(1));
+    const name = hashName(link.getAttribute('href'));
+    const target = name && (document.getElementById(name) || document.getElementById(anchorTargets[name] || ''));
     link.classList.toggle('is-removed', Boolean(target && target.closest('.is-removed')));
   });
 }
 
 // ---------- Theme (admin: Theme tab) ----------
-// content.theme = { preset, colors: { …overrides }, font, headingFont, radius, customFonts }.
+// content.theme = { preset, colors: { …overrides }, font, headingFont, radius, customFonts, and the font
+// styles: textWeight, boldWeight, textSpacing, textSize, headingWeight, headingBold, headingItalic,
+// headingCase ("upper" | "normal"), headingSpacing }. Spacing is in hundredths of an em, size in percent.
 // customFonts = [{ name, file, weight, style }]: font files uploaded in the Theme tab (assets/fonts/).
 // The colours fill the CSS variables at the top of css/style.css.
 const THEME_PRESETS = {
@@ -1160,8 +1215,59 @@ const THEME_FONTS = {
   'System font': null,
 };
 
-// The theme's colours, with the admin's overrides on top of the preset
-function themeColors(theme) {
+// The ones with italic letters of their own (the others are slanted by the browser)
+const THEME_ITALICS = ['Inter', 'DM Sans', 'Plus Jakarta Sans', 'Nunito', 'Poppins', 'Playfair Display', 'Fraunces', 'Cormorant Garamond', 'Instrument Serif'];
+
+// What the font styles are when the Theme tab hasn't changed them (as the site looked before they existed)
+const FONT_STYLE_DEFAULTS = { textWeight: 400, boldWeight: 700, textSpacing: 0, textSize: 100, headingWeight: 900, headingBold: 900, headingItalic: false, headingCase: 'upper', headingSpacing: 0 };
+const ALL_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+
+// The weights a font comes in: a Google font's from its list, an uploaded one's from its files
+// (a file on "All weights" is a variable font), the system font's from Segoe UI
+function fontWeights(theme, name) {
+  const family = name || 'Geologica';
+  const own = ((theme && theme.customFonts) || []).filter((f) => f && f.file && String(f.name).trim() === family.trim());
+  if (own.length) {
+    if (own.some((f) => !/^\d{3}$/.test(String(f.weight)))) return ALL_WEIGHTS;
+    return [...new Set(own.map((f) => Number(f.weight)))].sort((a, b) => a - b);
+  }
+  const axes = THEME_FONTS[family];
+  if (axes === null) return [300, 400, 600, 700, 900];
+  if (axes === undefined) return ALL_WEIGHTS;
+  const range = /(\d{3})\.\.(\d{3})/.exec(axes);
+  if (range) return ALL_WEIGHTS.filter((w) => w >= Number(range[1]) && w <= Number(range[2]));
+  const list = (axes.match(/\d{3}/g) || []).map(Number);
+  return list.length ? list : [400];
+}
+
+const nearestWeight = (weights, wanted) => weights.reduce((best, w) => (Math.abs(w - wanted) < Math.abs(best - wanted) ? w : best));
+
+// The font styles as CSS variables. Weights snap to ones the font has, so nothing is drawn fake-bold;
+// bold that the font can't make heavier than the text is left to the browser to thicken, so it still shows.
+function fontStyleVars(set) {
+  const style = { ...FONT_STYLE_DEFAULTS, ...Object.fromEntries(Object.entries(set).filter(([key, value]) => key in FONT_STYLE_DEFAULTS && value != null && value !== '')) };
+  const textFont = set.font || 'Geologica';
+  const textWeights = fontWeights(set, textFont);
+  const headingWeights = fontWeights(set, set.headingFont || textFont);
+  const bold = (weights, base, wanted) => {
+    const w = nearestWeight(weights, Number(wanted));
+    return w > base ? w : Math.max(Number(wanted), base);
+  };
+  const body = nearestWeight(textWeights, Number(style.textWeight));
+  const heading = nearestWeight(headingWeights, Number(style.headingWeight));
+  // Smaller headings (experience entries) are one step lighter than the weight picked
+  const lighter = nearestWeight(headingWeights, Math.max(Number(style.headingWeight) - 100, 100));
+  const em = (v) => `${(Math.min(Math.max(Number(v) || 0, -20), 50) / 100).toFixed(2)}em`;
+  return `--body-weight:${body};--bold-weight:${bold(textWeights, body, style.boldWeight)};--text-spacing:${em(style.textSpacing)};`
+    + `--text-size:${Math.min(Math.max(Number(style.textSize) || 100, 80), 140) / 100};`
+    + `--heading-weight:${heading};--heading-lighter:${lighter};--heading-bold:${bold(headingWeights, heading, style.headingBold)};`
+    + `--heading-style:${style.headingItalic ? 'italic' : 'normal'};--heading-case:${style.headingCase === 'normal' ? 'none' : 'uppercase'};--heading-spacing:${em(style.headingSpacing)};`;
+}
+
+// The theme's colours, with the admin's overrides on top of the preset. version "other": the second
+// version when visitors can switch between dark and light (theme.switchable): colours made from the first
+// (see otherVersion), with theme.other's own changes on top.
+function themeColors(theme, version) {
   const set = theme || {};
   const preset = THEME_PRESETS[set.preset] || THEME_PRESETS.midnight;
   const own = set.colors || {};
@@ -1169,7 +1275,93 @@ function themeColors(theme) {
   // A new accent without its own dark shade: mix one (used for card tiles)
   if (own.accent && !own.accentDark) colors.accentDark = `color-mix(in srgb, ${own.accent} 32%, #000)`;
   colors.heroBg = own.heroBg || preset.heroBg || colors.bg;
-  return colors;
+  colors.mode = colors.mode === 'light' ? 'light' : 'dark';
+  if (version !== 'other') return colors;
+  const mode = colors.mode === 'light' ? 'dark' : 'light';
+  const changes = Object.fromEntries(Object.entries(set.other || {}).filter(([, value]) => isHexColor(value)));
+  const out = { ...otherVersion(colors, mode), ...changes, mode };
+  if (changes.accent) out.accentDark = `color-mix(in srgb, ${changes.accent} 32%, #000)`;
+  return out;
+}
+
+// ---------- Colour maths (for the second version) ----------
+// OKLCH: lightness, colourfulness and hue as the eye sees them, so a colour can be made lighter or darker
+// without changing its hue
+const isHexColor = (value) => /^#[0-9a-f]{6}$/i.test(value || '');
+const hexRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+const toLinear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+const fromLinear = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+
+function hexToOklch(hex) {
+  const [r, g, b] = hexRgb(hex).map(toLinear);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return { L: 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, c: Math.hypot(a, bb), h: Math.atan2(bb, a) };
+}
+
+// Less colourful until it fits what screens can show
+function oklchToHex(L, c, h) {
+  for (let k = c; ; k *= 0.9) {
+    const a = k * Math.cos(h);
+    const b = k * Math.sin(h);
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    const rgb = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
+    if (rgb.every((v) => v >= -0.001 && v <= 1.001) || k < 0.001) {
+      return `#${rgb.map((v) => Math.round(fromLinear(Math.min(Math.max(v, 0), 1)) * 255).toString(16).padStart(2, '0')).join('')}`;
+    }
+  }
+}
+
+const luminance = (hex) => {
+  const [r, g, b] = hexRgb(hex).map(toLinear);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (x, y) => {
+  const [a, b] = [luminance(x), luminance(y)].sort((p, q) => q - p);
+  return (a + 0.05) / (b + 0.05);
+};
+
+// A colour made lighter (on dark) or darker (on light), keeping its hue, until it reads on the background
+function readableOn(hex, bg, min) {
+  if (!isHexColor(hex) || !isHexColor(bg)) return hex;
+  const { L, c, h } = hexToOklch(hex);
+  const up = luminance(bg) < 0.2;
+  let out = hex;
+  for (let step = 1; step <= 50 && contrast(out, bg) < min; step++) out = oklchToHex(Math.min(Math.max(L + (up ? 0.02 : -0.02) * step, 0), 1), c, h);
+  return out;
+}
+
+// The other version of a set of colours: backgrounds and text in the same tint, the accents kept but made
+// readable on the new background. The top section stays as it is (a dark stage in both).
+function otherVersion(c, mode) {
+  const base = hexToOklch(isHexColor(c.bg) ? c.bg : '#000000');
+  const chroma = Math.min(base.c, 0.03);
+  const tone = (L, k = 1) => oklchToHex(L, chroma * k, base.h);
+  const neutrals = mode === 'light'
+    ? { bg: tone(0.975), bgAlt: tone(0.945), surface: tone(0.995, 0.3), border: tone(0.87), text: tone(0.22), textDim: tone(0.48) }
+    : { bg: tone(0.14), bgAlt: tone(0.17), surface: tone(0.205), border: tone(0.29), text: tone(0.96, 0.4), textDim: tone(0.72, 0.6) };
+  const accent = readableOn(c.accent, neutrals.bg, 3);
+  return {
+    ...neutrals,
+    accent,
+    accent2: readableOn(c.accent2, neutrals.bg, 3),
+    accentDark: `color-mix(in srgb, ${accent} 32%, #000)`,
+    onAccent: isHexColor(accent) && contrast(accent, '#ffffff') < contrast(accent, '#141414') ? '#141414' : '#ffffff',
+    heroBg: c.heroBg,
+  };
+}
+
+// A section's own background colour in the other version, unless one is set: same hue, light or dark
+function otherBackground(hex, mode) {
+  if (!isHexColor(hex)) return hex;
+  const { c, h } = hexToOklch(hex);
+  return oklchToHex(mode === 'light' ? 0.93 : 0.25, c * 0.6, h);
 }
 
 // Strips characters that could break out of a quoted CSS string
@@ -1183,7 +1375,14 @@ function themeFontsHref(theme) {
   if (!families.length) return '';
   return `https://fonts.googleapis.com/css2?${families.map((f) => {
     const axes = THEME_FONTS[f];
-    return `family=${encodeURIComponent(f).replace(/%20/g, '+')}${axes ? `:${axes}` : ''}`;
+    let spec = axes ? `:${axes}` : '';
+    // With its italic too (the browser only downloads it where italic is used): "wght@300..900" becomes
+    // "ital,wght@0,300..900;1,300..900"
+    if (THEME_ITALICS.includes(f)) {
+      const weights = axes ? axes.replace(/^wght@/, '').split(';') : [];
+      spec = weights.length ? `:ital,wght@${[0, 1].flatMap((i) => weights.map((w) => `${i},${w}`)).join(';')}` : ':ital@0;1';
+    }
+    return `family=${encodeURIComponent(f).replace(/%20/g, '+')}${spec}`;
   }).join('&')}&display=swap`;
 }
 
@@ -1202,26 +1401,39 @@ function customFontCss(theme, forFile) {
   }).join('');
 }
 
-function themeCss(theme, forFile) {
-  const set = theme || {};
-  const c = themeColors(set);
+// One version's colours as CSS variables
+function colourVars(c, heroText) {
   const dark = c.mode !== 'light';
   // The top section is always a dark stage: on a light theme it gets light text of its own,
   // unless the Theme tab sets one
   const hero = dark
     ? { text: c.text, dim: c.textDim, border: c.border }
     : { text: '#f5f6f8', dim: '#a3a9b3', border: '#2c313a' };
-  const own = set.colors || {};
-  if (own.heroText) {
-    hero.text = own.heroText;
-    hero.dim = `color-mix(in srgb, ${own.heroText} 62%, transparent)`;
+  if (heroText) {
+    hero.text = heroText;
+    hero.dim = `color-mix(in srgb, ${heroText} 62%, transparent)`;
   }
-  const radius = Math.min(Math.max(Number(set.radius ?? 14), 0), 32);
-  return `:root{--bg:${c.bg};--bg-alt:${c.bgAlt};--surface:${c.surface};--border:${c.border};--text:${c.text};--text-dim:${c.textDim};`
+  return `--bg:${c.bg};--bg-alt:${c.bgAlt};--surface:${c.surface};--border:${c.border};--text:${c.text};--text-dim:${c.textDim};`
     + `--accent:${c.accent};--accent-dark:${c.accentDark};--accent-orange:${c.accent2};--on-accent:${c.onAccent};`
     + `--hero-bg:${c.heroBg};--hero-text:${hero.text};--hero-text-dim:${hero.dim};--hero-border:${hero.border};`
-    + `--radius:${radius}px;--font-body:${fontStack(set.font || 'Geologica')};--font-heading:${fontStack(set.headingFont || set.font || 'Geologica')};`
-    + `color-scheme:${dark ? 'dark' : 'light'}}${customFontCss(set, forFile)}`;
+    + `color-scheme:${dark ? 'dark' : 'light'};`;
+}
+
+// With both versions, the second applies when the page says so (data-mode, set by the ☾/☀ button or a
+// remembered choice), or, before that, when the visitor's device prefers it
+function themeCss(theme, forFile) {
+  const set = theme || {};
+  const main = themeColors(set);
+  const own = set.colors || {};
+  const radius = Math.min(Math.max(Number(set.radius ?? 14), 0), 32);
+  let css = `:root{${colourVars(main, own.heroText)}`
+    + `--radius:${radius}px;--title-dot:${set.titleDot === false ? 'none' : '"."'};--font-body:${fontStack(set.font || 'Geologica')};--font-heading:${fontStack(set.headingFont || set.font || 'Geologica')};${fontStyleVars(set)}}`;
+  if (set.switchable) {
+    const other = themeColors(set, 'other');
+    const vars = colourVars(other, (set.other || {}).heroText || own.heroText);
+    css += `:root[data-mode="${other.mode}"]{${vars}}@media (prefers-color-scheme: ${other.mode}){:root:not([data-mode="${main.mode}"]){${vars}}}`;
+  }
+  return css + customFontCss(set, forFile);
 }
 
 // Browser-tab icon: an uploaded image (site.favicon), else the initials in the accent colour.
@@ -1229,7 +1441,7 @@ function themeCss(theme, forFile) {
 function faviconHref(site, theme, forFile) {
   if (site.favicon) return forFile ? site.favicon : assetUrl(site.favicon);
   const c = themeColors(theme);
-  const initials = (site.initials || (site.name || 'Y N').split(/\s+/).map((w) => w[0]).join('').slice(0, 2)).toUpperCase().slice(0, 3);
+  const initials = (site.initials || plainText(site.name || 'Y N').split(/\s+/).map((w) => w[0]).join('').slice(0, 2)).toUpperCase().slice(0, 3);
   const esc = (v) => String(v).replace(/[<>&"']/g, '');
   const size = initials.length > 2 ? 22 : 28;
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='${esc(c.bg)}'/>`
@@ -1242,15 +1454,103 @@ function applyTheme(theme) {
   const fonts = document.getElementById('theme-fonts');
   const href = themeFontsHref(theme);
   if (fonts.getAttribute('href') !== href) fonts.setAttribute('href', href);
+  modeSet = { switchable: Boolean(theme && theme.switchable), main: themeColors(theme).mode, look: (theme && theme.modeButton) || 'icon' };
+  showModeOnPage();
 }
 
+// ---------- Dark and light for visitors ----------
+// theme.switchable: the site has both versions. A visitor first sees the one their device prefers; the
+// ☾/☀ button in the menu switches, and this browser remembers it. A line at the top of index.html sets a
+// remembered choice before the page shows, so it doesn't flash the other version first.
+const MODE_KEY = 'site-mode';
+const prefersLight = window.matchMedia('(prefers-color-scheme: light)');
+// (an index.html from before the button gets a stand-in, so nothing breaks)
+const modeButton = document.getElementById('mode-toggle') || document.createElement('button');
+let modeSet = { switchable: false, main: 'dark', look: 'icon' };
+const MODE_LOOKS = ['icon', 'label', 'switch']; // the button: a sun or moon, the same with a word, or a sliding switch
+let previewMode = ''; // the admin panel showing the version being edited
+let lookContent = null; // what the sections' backgrounds were last drawn from
+
+function chosenMode() {
+  try {
+    const mode = localStorage.getItem(MODE_KEY);
+    return mode === 'light' || mode === 'dark' ? mode : '';
+  } catch {
+    return '';
+  }
+}
+
+function shownMode() {
+  if (!modeSet.switchable) return modeSet.main;
+  return previewMode || chosenMode() || (prefersLight.matches ? 'light' : 'dark');
+}
+
+// The page's data-mode (which version the colours use) and the button
+function showModeOnPage() {
+  const root = document.documentElement;
+  const mode = shownMode();
+  if (modeSet.switchable) root.dataset.mode = mode;
+  else delete root.dataset.mode;
+  modeButton.hidden = !modeSet.switchable;
+  modeButton.dataset.mode = mode;
+  MODE_LOOKS.forEach((look) => modeButton.classList.toggle(`is-${look}`, look === (MODE_LOOKS.includes(modeSet.look) ? modeSet.look : 'icon')));
+  // With a word: the version it switches to
+  const word = modeButton.querySelector('.mode-word');
+  if (word) word.textContent = t(mode === 'dark' ? 'mode.light' : 'mode.dark');
+  const label = t(mode === 'dark' ? 'mode.toLight' : 'mode.toDark');
+  modeButton.setAttribute('aria-label', label);
+  modeButton.title = label;
+}
+
+// Switching: the version's colours, and the sections' own backgrounds follow. `smooth`: the browser
+// cross-fades the whole page as one picture (a view transition), so everything fades together, gradients
+// and video too, in one step on the graphics card. Fading each colour by itself would start hundreds of
+// fades that repaint the page every frame, and gradients can't fade. Browsers without view transitions,
+// and visitors who reduce motion, switch at once; so do the panel's previews.
+function switchMode(smooth) {
+  const apply = () => {
+    showModeOnPage();
+    if (lookContent) applySectionLook(lookContent);
+    matchHeroFade();
+  };
+  if (!smooth || prefersStill || !document.startViewTransition) {
+    apply();
+    return;
+  }
+  const root = document.documentElement;
+  root.classList.add('mode-switching');
+  const fade = document.startViewTransition(apply);
+  // Clicked again before it ended: the new one takes over (the switch itself still happens)
+  fade.ready.catch(() => {});
+  fade.finished.finally(() => root.classList.remove('mode-switching'));
+}
+
+modeButton.addEventListener('click', () => {
+  try { localStorage.setItem(MODE_KEY, shownMode() === 'dark' ? 'light' : 'dark'); } catch { /* storage blocked: this visit only */ }
+  previewMode = '';
+  switchMode(true);
+});
+prefersLight.addEventListener('change', () => { if (modeSet.switchable && !chosenMode() && !previewMode) switchMode(true); });
+
 // Used by the admin panel (Theme tab, and writing these into index.html on save)
-window.SiteTheme = { presets: THEME_PRESETS, fonts: THEME_FONTS, colors: themeColors, css: themeCss, fontsHref: themeFontsHref, favicon: faviconHref };
+// apply() restyles the page at once without rebuilding it: colours, corners, fonts and the mouse effect
+// (the panel uses it while a colour or a Theme slider is dragged)
+window.SiteTheme = {
+  presets: THEME_PRESETS, fonts: THEME_FONTS, italics: THEME_ITALICS, fontWeights, fontStyle: FONT_STYLE_DEFAULTS, colors: themeColors, css: themeCss, fontsHref: themeFontsHref, favicon: faviconHref,
+  apply: (theme) => { applyTheme(theme); applyCursor(theme && theme.cursor); if (lookContent) applySectionLook(lookContent); matchHeroFade(); },
+  // The panel shows one version while it's edited ('' = the visitor's own again)
+  showMode: (mode) => { previewMode = mode || ''; switchMode(); },
+  shownMode: () => shownMode(),
+  otherBackground,
+};
 
 // ---------- Mouse effect (admin: Theme tab) ----------
-// content.theme.cursor = { style, size, color, grow, image, tip, glowSize, glowStrength, glowColor, magnetic }
+// content.theme.cursor = { style, size, color, grow, image, tip, glowSize, glowStrength, glowColor, magnetic, frames }
 // style: "off" (normal pointer), "dot", "label" (a dot that says View / Play over projects), "spotlight"
 // (normal pointer with a soft glow following it) or "image" (an uploaded picture as the pointer).
+// A pointer from a cursor file (.cur, .ani, Xcursor) is saved as a strip of frames side by side, with
+// frames = { count, width, height, delays (ms per frame), hotX, hotY (the pixel that points) }, and
+// tip "hotspot" to point with that pixel. The frames play here, at their own speed.
 // Only for a mouse or trackpad, and not for visitors who reduce motion: they keep the normal pointer.
 const CURSOR_DEFAULTS = {
   style: 'dot', size: 14, color: 'invert', grow: true, image: '', tip: 'center',
@@ -1266,6 +1566,7 @@ let cursorEl = null;
 let cursorLabel = null;
 let glowEl = null;
 let magnetTarget = null;
+let cursorTimer = 0;
 
 // Dot, label and picture are drawn by the page (the real pointer is hidden); with a picture style
 // but no picture yet, it's a dot
@@ -1361,19 +1662,48 @@ function applyCursor(settings) {
   const size = Math.min(Math.max(Number(cursorSet.size) || 14, 6), shape === 'image' ? 128 : 40);
   cursorEl.style.setProperty('--cursor-size', `${size}px`);
   cursorEl.style.backgroundImage = picture ? `url("${cssString(picture)}")` : '';
+  playCursorFrames(shape === 'image' ? cursorSet.frames : null);
   if (cursorSet.style !== 'label') cursorEl.classList.remove('is-label');
   glowEl.style.setProperty('--glow-size', `${Math.min(Math.max(Number(cursorSet.glowSize) || 320, 100), 800)}px`);
   glowEl.style.setProperty('--glow-strength', `${Math.min(Math.max(Number(cursorSet.glowStrength) || 18, 2), 60)}%`);
   glowEl.style.setProperty('--glow-color', cursorSet.glowColor === 'accent2' ? 'var(--accent-orange)' : 'var(--accent)');
 }
 
+// A pointer made of frames: its shape, the pixel that points, and the frames one after another
+function playCursorFrames(frames) {
+  clearTimeout(cursorTimer);
+  const ok = frames && frames.width > 0 && frames.height > 0;
+  const count = ok ? Math.min(Math.max(Math.round(Number(frames.count)) || 1, 1), 400) : 1;
+  const hot = ok && Number.isFinite(frames.hotX) && Number.isFinite(frames.hotY);
+  cursorEl.classList.toggle('is-sprite', ok);
+  cursorEl.style.setProperty('--frames', String(count));
+  cursorEl.style.setProperty('--cursor-ratio', String(ok ? frames.height / frames.width : 1));
+  cursorEl.style.setProperty('--hot-x', String(hot ? frames.hotX / frames.width : 0.5));
+  cursorEl.style.setProperty('--hot-y', String(hot ? frames.hotY / frames.height : 0.5));
+  if (cursorEl.dataset.tip === 'hotspot' && !hot) cursorEl.dataset.tip = 'center';
+  cursorEl.style.setProperty('--frame', '0');
+  if (count < 2) return;
+  const delays = Array.isArray(frames.delays) ? frames.delays : [];
+  let frame = 0;
+  const next = () => {
+    cursorEl.style.setProperty('--frame', String(frame));
+    const wait = Math.min(Math.max(Number(delays[frame]) || 100, 16), 10000);
+    frame = (frame + 1) % count;
+    cursorTimer = setTimeout(next, wait);
+  };
+  next();
+}
+
 // ---------- Your name and site details (admin: Site tab) ----------
 function renderIdentity(site, theme) {
-  siteName = (site.name || '').trim() || 'Your Name';
+  // The name may have formatting for the big heading; everywhere else it's the words alone
+  const name = (site.name || '').trim() || 'Your Name';
+  siteName = plainText(name);
   const words = siteName.split(/\s+/);
   firstName = (site.shortName || '').trim() || words[0];
   const heading = document.querySelector('[data-site="name"]');
-  if (heading.getAttribute('aria-label') !== siteName) setRevealText(heading, siteName);
+  if (heading.dataset.raw !== name) setRevealText(heading, name);
+  field(heading, 'site.name');
   // Logo: first word plain, the rest in the accent colour
   const logo = document.querySelector('[data-site="logo"]');
   logo.textContent = words[0];
@@ -1386,10 +1716,15 @@ function renderIdentity(site, theme) {
 // ---------- Sections: order, titles, menu and look (admin: Page tab) ----------
 // content.sections = {
 //   order: [ids], removed: [ids of built-in sections taken off the page],
-//   <id>: { title, nav, inMenu, background ("main" | "alt"), titleStyle ("large" | "small"), titleSize (%), categories },
+//   <id>: { title, nav, inMenu, background ("main" | "alt" | "custom"), bgColor, bgImage, bgDarken (%),
+//           titleStyle ("large" | "small"), titleSize (%), width ("narrow" | "normal" | "wide" | "full"),
+//           spacing ("compact" | "normal" | "roomy"), device ("all" | "desktop" | "phone"),
+//           anchor (the name in its link, e.g. "services" for #services), categories },
 // }
-// Sections: the built-in ones below, extra Work grids (content.workGrids) and Text sections (content.customSections).
+// Sections: the built-in ones below, extra Work grids (content.workGrids) and added sections
+// (content.customSections: Text, Gallery, Video and the other types in SECTION_TYPES).
 const BUILTIN_SECTIONS = ['about', 'reel', 'work', 'experience', 'toolkit', 'contact'];
+const SECTION_TYPES = ['text', 'gallery', 'video', 'quotes', 'logos', 'numbers', 'faq', 'cta'];
 // What a section looks like when its settings don't say (Experience and Toolkit sit under Work with small titles)
 const SECTION_LOOK = {
   about: { background: 'alt', titleStyle: 'large', inMenu: true },
@@ -1400,7 +1735,31 @@ const SECTION_LOOK = {
   contact: { background: 'main', titleStyle: 'large', inMenu: true },
   grid: { background: 'alt', titleStyle: 'large', inMenu: true },
   text: { background: 'main', titleStyle: 'large', inMenu: true },
+  gallery: { background: 'alt', titleStyle: 'large', inMenu: true },
+  video: { background: 'main', titleStyle: 'large', inMenu: true },
+  quotes: { background: 'alt', titleStyle: 'small', inMenu: false },
+  logos: { background: 'main', titleStyle: 'small', inMenu: false },
+  numbers: { background: 'main', titleStyle: 'small', inMenu: false },
+  faq: { background: 'alt', titleStyle: 'large', inMenu: true },
+  cta: { background: 'alt', titleStyle: 'small', inMenu: false },
 };
+const SECTION_CHOICES = {
+  width: ['normal', 'narrow', 'wide', 'full'],
+  spacing: ['normal', 'compact', 'roomy'],
+  device: ['all', 'desktop', 'phone'],
+};
+// Layouts a section can switch between (content.sections.<id>.layout; the first is the standard one).
+// A Text section's picture place is its own setting (imagePlace: below, above, side = right, side-left).
+const SECTION_LAYOUTS = {
+  about: ['photo-right', 'photo-left', 'photo-above'],
+  reel: ['stacked', 'side'],
+  video: ['stacked', 'side'],
+  contact: ['stacked', 'side'],
+  work: ['auto', 'cols-2', 'cols-3', 'cols-4'],
+  grid: ['auto', 'cols-2', 'cols-3', 'cols-4'],
+  quotes: ['cards', 'large'],
+};
+window.SECTION_LAYOUTS = SECTION_LAYOUTS;
 // content.sections.<name>.title / .nav replace these interface texts (empty keeps the default)
 const SECTION_TEXT = {
   about: { title: 'about.title', nav: 'nav.about' },
@@ -1413,9 +1772,11 @@ const SECTION_TEXT = {
 };
 
 function sectionKind(content, id) {
+  if (id === 'hero') return 'hero';
   if (BUILTIN_SECTIONS.includes(id)) return id;
   if ((content.workGrids || []).some((g) => g.id === id)) return 'grid';
-  return 'text';
+  const added = (content.customSections || []).find((s) => s.id === id);
+  return added && SECTION_TYPES.includes(added.type) ? added.type : 'text';
 }
 
 // A section's settings with the defaults for its kind filled in
@@ -1423,24 +1784,76 @@ function sectionSettings(content, id) {
   const kind = sectionKind(content, id);
   const look = SECTION_LOOK[kind] || SECTION_LOOK.text;
   const own = (content.sections || {})[id] || {};
+  const pick = (key) => (SECTION_CHOICES[key].includes(own[key]) ? own[key] : SECTION_CHOICES[key][0]);
   return {
     ...own,
     kind,
-    background: own.background === 'main' || own.background === 'alt' ? own.background : look.background,
+    background: ['main', 'alt', 'custom'].includes(own.background) ? own.background : look.background,
     titleStyle: own.titleStyle === 'large' || own.titleStyle === 'small' ? own.titleStyle : look.titleStyle,
     titleSize: Math.min(Math.max(Number(own.titleSize) || 100, 40), 200),
     inMenu: typeof own.inMenu === 'boolean' ? own.inMenu : look.inMenu,
+    width: pick('width'),
+    spacing: pick('spacing'),
+    device: pick('device'),
+    bgDarken: Math.min(Math.max(Number.isFinite(Number(own.bgDarken)) ? Number(own.bgDarken) : 50, 0), 90),
+    layout: SECTION_LAYOUTS[kind] ? (SECTION_LAYOUTS[kind].includes(own.layout) ? own.layout : SECTION_LAYOUTS[kind][0]) : '',
   };
 }
 
+// Custom link names (content.sections.<id>.anchor) -> section id. A name that's taken (by another
+// section, or anything else on the page) is ignored, and the section keeps its own id as its link.
+let anchorTargets = {};
+
+// "#services" -> "services" (a malformed address stays as it is)
+function hashName(hash) {
+  const name = String(hash || '').replace(/^#/, '');
+  try { return decodeURIComponent(name); } catch { return name; }
+}
+
+function sectionLink(content, id) {
+  const own = String(sectionSettings(content, id).anchor || '').trim().toLowerCase();
+  if (!/^[a-z][a-z0-9-]{0,40}$/.test(own) || own === id || document.getElementById(own) || (anchorTargets[own] && anchorTargets[own] !== id)) return id;
+  anchorTargets[own] = id;
+  return own;
+}
+
+// A link to a custom name scrolls to its section (the browser can't: no element has that id)
+function scrollToAnchor(name, smooth) {
+  const section = anchorTargets[name] && document.getElementById(anchorTargets[name]);
+  if (!section) return false;
+  section.scrollIntoView({ behavior: smooth ? 'auto' : 'instant', block: 'start' });
+  return true;
+}
+
+document.addEventListener('click', (e) => {
+  const link = e.target.closest && e.target.closest('a[href^="#"]');
+  const name = link && hashName(link.getAttribute('href'));
+  if (!name || !scrollToAnchor(name, true)) return;
+  e.preventDefault();
+  history.pushState(null, '', `#${name}`);
+});
+window.addEventListener('hashchange', () => scrollToAnchor(hashName(window.location.hash), true));
+
 // Sections on the page, top to bottom. Built-in sections that aren't in the saved order (and weren't
 // removed) are added where they belong, so content saved before they existed still shows them.
-function sectionOrder(content) {
+// pageId: '' for the home page (content.sections.order, which also holds the top section, "hero"), else
+// the id of one of content.pages, whose sections are in its own order. A section is on one page only.
+// Leave it out for the page being shown.
+function sectionOrder(content, pageId = currentPageId) {
   const sections = content.sections || {};
   const ids = [...BUILTIN_SECTIONS, ...(content.workGrids || []).map((g) => g.id), ...(content.customSections || []).map((s) => s.id)];
   const removed = Array.isArray(sections.removed) ? sections.removed : [];
-  const order = [...new Set((Array.isArray(sections.order) ? sections.order : []).filter((id) => ids.includes(id) && !removed.includes(id)))];
+  const pages = pagesOf(content);
+  if (pageId) {
+    const page = pages.find((pg) => pg.id === pageId);
+    return page ? [...new Set(page.order.filter((id) => ids.includes(id) && !removed.includes(id)))] : [];
+  }
+  const elsewhere = new Set(pages.flatMap((pg) => pg.order));
+  const order = [...new Set((Array.isArray(sections.order) ? sections.order : []).filter((id) => (id === 'hero' || ids.includes(id)) && !removed.includes(id) && !elsewhere.has(id)))];
+  // The top section comes first unless it has been moved
+  if (!order.includes('hero')) order.unshift('hero');
   ids.forEach((id) => {
+    if (elsewhere.has(id)) return;
     if (order.includes(id) || removed.includes(id)) return;
     const after = { experience: 'work', toolkit: 'experience' }[id];
     if (after && order.includes(after)) order.splice(order.indexOf(after) + 1, 0, id);
@@ -1450,13 +1863,72 @@ function sectionOrder(content) {
   return order;
 }
 
+// ---------- Pages ----------
+// content.pages = [{ id, slug, title, nav, inMenu, order: [section ids] }]: pages besides the home page,
+// each with its own sections. A page's address is ?page=<slug> (the same index.html); links between pages
+// switch without reloading, and the browser's back button goes back.
+let currentPageId = ''; // '' = the home page
+
+function pagesOf(content) {
+  return (Array.isArray(content.pages) ? content.pages : [])
+    .filter((pg) => pg && /^[\w-]+$/.test(pg.id || '') && /^[a-z0-9-]+$/.test(pg.slug || ''))
+    .map((pg) => ({ ...pg, order: Array.isArray(pg.order) ? pg.order : [] }));
+}
+
+const homeHref = () => window.location.pathname;
+const pageHref = (page) => (page ? `${homeHref()}?page=${encodeURIComponent(page.slug)}` : homeHref());
+
+function pageFromUrl(content) {
+  const slug = new URLSearchParams(window.location.search).get('page');
+  const page = slug && pagesOf(content).find((pg) => pg.slug === slug);
+  return page ? page.id : '';
+}
+
+// Shows another page (or the home page, ''): the address changes, the page is drawn again
+function showPage(pageId, { push = true, hash = '' } = {}) {
+  const page = pagesOf(currentContent).find((pg) => pg.id === pageId) || null;
+  if (!modal.hidden) hideModal();
+  currentPageId = page ? page.id : '';
+  if (push) history.pushState(null, '', pageHref(page) + (hash ? `#${hash}` : ''));
+  renderSite(currentContent);
+  if (hash && (scrollToAnchor(hash, false) || document.getElementById(hash))) {
+    if (document.getElementById(hash)) document.getElementById(hash).scrollIntoView({ behavior: 'instant', block: 'start' });
+  } else {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  document.dispatchEvent(new CustomEvent('site:pagechange', { detail: { pageId: currentPageId } }));
+}
+
+// Links to a page of this site (?page=…, or the home page with a #section) switch without reloading
+document.addEventListener('click', (e) => {
+  const link = e.target.closest && e.target.closest('a[data-page]');
+  if (!link || e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey || e.button > 0) return;
+  e.preventDefault();
+  showPage(link.dataset.page, { hash: link.dataset.hash || '' });
+});
+window.addEventListener('popstate', () => {
+  const pageId = pageFromUrl(currentContent);
+  if (pageId !== currentPageId) showPage(pageId, { push: false, hash: hashName(window.location.hash) });
+  const project = projectFromUrl();
+  if (project >= 0 && project !== openProjectIndex) openProject(project, { push: false });
+  else if (project < 0 && openProjectIndex !== null) hideModal();
+});
+
+window.SitePages = {
+  list: pagesOf,
+  current: () => currentPageId,
+  show: (pageId) => showPage(pageId),
+  href: (pageId) => pageHref(pagesOf(currentContent).find((pg) => pg.id === pageId) || null),
+};
+
 // The menu label: its own label, else the standard one, else its title
 function sectionNavText(content, id) {
   const set = sectionSettings(content, id);
-  if (set.nav && set.nav.trim()) return set.nav.trim();
-  if (SECTION_TEXT[id] && SECTION_TEXT[id].nav) return t(SECTION_TEXT[id].nav);
-  if (SECTION_TEXT[id]) return t(SECTION_TEXT[id].title);
-  return (set.title || '').trim() || (set.kind === 'grid' ? t('work.title') : '');
+  if (set.nav && set.nav.trim()) return plainText(set.nav.trim());
+  if (SECTION_TEXT[id] && SECTION_TEXT[id].nav) return plainText(t(SECTION_TEXT[id].nav));
+  if (SECTION_TEXT[id]) return plainText(t(SECTION_TEXT[id].title));
+  if (id === 'hero') return '';
+  return plainText((set.title || '').trim()) || (set.kind === 'grid' ? t('work.title') : '');
 }
 
 // Used by the admin panel's Page tab
@@ -1466,15 +1938,302 @@ let revealReady = false;
 
 // Sets a section heading's text, keeping it when unchanged so its letters don't animate again
 function setSectionTitle(heading, text) {
-  if (heading.getAttribute('aria-label') === text) return;
+  if (heading.dataset.raw === text) return;
   setRevealText(heading, text);
   if (revealReady) heading.classList.add('is-in');
 }
 
-// ---------- Text sections ----------
-// content.customSections = [{ id, text, image, imageAlt, imagePlace, button: { label, url } }]; the title,
-// menu label and look are in content.sections.<id> like every other section.
-// text: paragraphs separated by an empty line. imagePlace: "below" or "side".
+// ---------- Added sections ----------
+// content.customSections = [{ id, type, intro, align ("left" | "center"), ... }]; the title, menu label and
+// look are in content.sections.<id> like every other section. What each type holds:
+//   text:    text, columns (1 | 2), image, imageAlt, imagePlace ("below" | "side"), buttons
+//   gallery: images [{ src, alt, caption }], columns (2-5), shape ("square" | "wide" | "natural")
+//   video:   youtube (an id), or video (a file or link) with thumb (its cover picture); caption
+//   quotes:  items [{ quote, name, role, photo }]
+//   logos:   items [{ src, alt, url }], style ("color" | "grey" | "white" | "black")
+//   numbers: items [{ value, label }]
+//   faq:     items [{ q, a }]
+//   cta:     text (one big line), sub, buttons
+// buttons = [{ label, url, style ("primary" | "ghost") }]. Text sections from before had one "button".
+
+// Simple formatting in text typed in the admin panel: **bold**, *italic*, [label](link), letter spacing
+// as [[tight:words]], [[wide:words]] or [[wider:words]] (these can go inside each other), and blocks whose
+// lines all start with "- " become a list. Paragraphs are separated by an empty line. Built as elements,
+// never as HTML, so nothing typed can run as code.
+const SPACING_MARKS = ['tight', 'wide', 'wider'];
+
+// The text as a tree: strings, and { type: 'strong' | 'em' | 'space' | 'link', name, url, children }.
+// A * opens before a letter and closes after one (so "5 * 3" stays as typed); marks left open are text.
+function parseInline(text) {
+  const root = { children: [] };
+  const stack = [root];
+  let buf = '';
+  const top = () => stack[stack.length - 1];
+  const flush = () => { if (buf) top().children.push(buf); buf = ''; };
+  const open = (node) => { flush(); top().children.push(node); stack.push(node); };
+  // An opener that never closed goes back to being the text it was
+  const unwrap = () => {
+    const node = stack.pop();
+    const parent = top();
+    parent.children.splice(parent.children.indexOf(node), 1, node.raw, ...node.children);
+  };
+  const close = (type) => {
+    flush();
+    while (top().type !== type) unwrap();
+    stack.pop();
+  };
+  const isOpen = (type) => stack.some((n) => n.type === type);
+  let i = 0;
+  while (i < text.length) {
+    const rest = text.slice(i);
+    const before = text[i - 1] || ' ';
+    let m;
+    if ((m = /^\[\[(tight|wide|wider):/.exec(rest))) {
+      open({ type: 'space', name: m[1], raw: m[0], children: [] });
+      i += m[0].length;
+    } else if (rest.startsWith(']]') && isOpen('space')) {
+      close('space');
+      i += 2;
+    } else if ((m = /^\[([^\][]+)\]\(([^)\s]+)\)/.exec(rest))) {
+      flush();
+      top().children.push({ type: 'link', url: m[2], children: parseInline(m[1]) });
+      i += m[0].length;
+    } else if (rest[0] === '*') {
+      const double = rest.startsWith('**');
+      const canClose = !/\s/.test(before);
+      const canOpen = /\S/.test(rest[double ? 2 : 1] || ' ') && !/^\*+$/.test(rest.slice(0, 4));
+      if (top().type === 'em' && canClose) { close('em'); i += 1; }
+      else if (double && isOpen('strong') && canClose) { close('strong'); i += 2; }
+      else if (!double && isOpen('em') && canClose) { close('em'); i += 1; }
+      else if (double && canOpen) { open({ type: 'strong', raw: '**', children: [] }); i += 2; }
+      else if (canOpen) { open({ type: 'em', raw: '*', children: [] }); i += 1; }
+      else { buf += rest[0]; i += 1; }
+    } else {
+      buf += rest[0];
+      i += 1;
+    }
+  }
+  flush();
+  while (stack.length > 1) unwrap();
+  return root.children;
+}
+
+// The element for one mark (a link to an address that isn't allowed is just its words)
+function inlineTag(node) {
+  if (node.type === 'space') return el('span', `ls-${node.name}`);
+  if (node.type !== 'link') return el(node.type);
+  const url = safeUrl(node.url);
+  if (!url) return el('span');
+  const link = el('a', 'text-link');
+  link.href = url;
+  if (/^https?:/i.test(url)) { link.target = '_blank'; link.rel = 'noopener'; }
+  return link;
+}
+
+function inlineNodes(parent, nodes) {
+  nodes.forEach((node) => {
+    if (typeof node === 'string') { if (node) parent.appendChild(document.createTextNode(node)); return; }
+    parent.appendChild(inlineNodes(inlineTag(node), node.children));
+  });
+  return parent;
+}
+
+function inlineText(parent, text) {
+  return inlineNodes(parent, parseInline(String(text || '')));
+}
+
+// The words without the marks: for the menu, the browser tab, link previews and screen readers
+function plainText(text) {
+  const flat = (nodes) => nodes.map((node) => (typeof node === 'string' ? node : flat(node.children))).join('');
+  return flat(parseInline(String(text || '')));
+}
+
+// A one-line text with formatting, tagged so the admin panel edits it as such
+function formatted(node, text) {
+  node.dataset.inline = '';
+  return inlineText(node, text);
+}
+
+// Used by the admin panel: the formatting marks (see parseInline)
+window.SiteText = { parse: parseInline, inline: inlineText, plain: plainText, spacing: SPACING_MARKS };
+
+// path: where the text is in the content, so the admin panel can edit it on the page (as typed, with the **)
+function richText(text, className, path) {
+  const box = el('div', className ? `rich-text ${className}` : 'rich-text');
+  if (path) {
+    field(box, path);
+    box.dataset.rich = '';
+    box.classList.toggle('is-empty', !String(text || '').trim());
+  }
+  String(text || '').split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean).forEach((block) => {
+    const lines = block.split('\n');
+    if (lines.every((line) => /^\s*[-•]\s+/.test(line))) {
+      const list = el('ul');
+      lines.forEach((line) => list.appendChild(inlineText(el('li'), line.replace(/^\s*[-•]\s+/, ''))));
+      box.appendChild(list);
+    } else {
+      box.appendChild(inlineText(el('p'), block));
+    }
+  });
+  return box;
+}
+
+function sectionButtons(sec) {
+  const list = Array.isArray(sec.buttons) ? sec.buttons : sec.button ? [sec.button] : [];
+  const row = el('div', 'custom-buttons');
+  list.forEach((button, n) => {
+    const label = button && (button.label || '').trim();
+    const url = button && safeUrl((button.url || '').trim());
+    if (!label || !url) return;
+    const style = button.style === 'ghost' || (!button.style && n > 0) ? 'btn-ghost' : 'btn-primary';
+    const link = el('a', `btn ${style}`, label);
+    link.href = url;
+    if (/^https?:/i.test(url)) { link.target = '_blank'; link.rel = 'noopener'; }
+    row.appendChild(link);
+  });
+  return row.children.length ? row : null;
+}
+
+function picture(src, alt, className) {
+  const img = el('img', className);
+  img.src = assetUrl(src);
+  img.alt = alt || '';
+  img.loading = 'lazy';
+  return img;
+}
+
+// What goes under a section's title, per type. path: the section's place in the content, for editing on the page.
+const SECTION_BODIES = {
+  text(sec, path) {
+    return [richText(sec.text, Number(sec.columns) === 2 ? 'is-two-columns' : '', `${path}.text`), sectionButtons(sec)];
+  },
+
+  gallery(sec, path, title) {
+    const images = (sec.images || []).filter((img) => img && img.src);
+    const grid = el('div', `gallery-grid shape-${['wide', 'natural'].includes(sec.shape) ? sec.shape : 'square'}`);
+    grid.dataset.entries = `${path}.images`;
+    grid.style.setProperty('--cols', String(Math.min(Math.max(Number(sec.columns) || 3, 2), 5)));
+    images.forEach((img, n) => {
+      const figure = el('figure', 'gallery-item');
+      figure.dataset.entry = `${path}.images.${sec.images.indexOf(img)}`;
+      const open = el('button', 'gallery-open');
+      open.type = 'button';
+      open.setAttribute('aria-label', img.alt || img.caption || t('work.pictureN').replace('{n}', n + 1));
+      open.appendChild(picture(img.src, img.alt));
+      open.addEventListener('click', () => { if (!open.closest('.adm-active')) openPictures(images, n, title, open); });
+      figure.appendChild(open);
+      const index = sec.images.indexOf(img);
+      if (img.caption) figure.appendChild(field(el('figcaption', null, img.caption), `${path}.images.${index}.caption`));
+      grid.appendChild(figure);
+    });
+    return [images.length ? grid : null];
+  },
+
+  video(sec, path, title) {
+    const frame = el('div', 'reel-frame');
+    const file = sec.video && safeUrl(sec.video) ? assetUrl(sec.video) : '';
+    if (sec.youtube) {
+      const iframe = youtubeEmbed(sec.youtube, title || t('reel.title'), false);
+      iframe.loading = 'lazy';
+      frame.appendChild(iframe);
+    } else if (file) {
+      const video = document.createElement('video');
+      video.src = file;
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      if (sec.thumb) video.poster = assetUrl(sec.thumb);
+      frame.appendChild(video);
+    } else {
+      frame.innerHTML = reelPlaceholder;
+      applyUiText(frame);
+    }
+    return [frame, sec.caption ? field(formatted(el('p', 'video-caption'), sec.caption), `${path}.caption`) : null];
+  },
+
+  quotes(sec, path) {
+    const grid = el('div', 'quote-grid');
+    grid.dataset.entries = `${path}.items`;
+    (sec.items || []).forEach((item, n) => {
+      if (!item || !(item.quote || '').trim()) return;
+      const card = el('figure', 'quote-card');
+      card.dataset.entry = `${path}.items.${n}`;
+      const quote = el('blockquote');
+      quote.appendChild(richText(item.quote, '', `${path}.items.${n}.quote`));
+      const who = el('figcaption', 'quote-person');
+      if (item.photo) who.appendChild(picture(item.photo, '', 'quote-photo'));
+      const names = el('span', 'quote-names');
+      if (item.name || isEditing()) names.appendChild(blankable(el('strong', null, item.name), `${path}.items.${n}.name`, 'Name'));
+      if (item.role || isEditing()) names.appendChild(blankable(el('span', null, item.role), `${path}.items.${n}.role`, 'Role or company'));
+      who.appendChild(names);
+      card.append(quote, who);
+      grid.appendChild(card);
+    });
+    return [grid.children.length ? grid : null];
+  },
+
+  logos(sec, path) {
+    const style = ['color', 'white', 'black'].includes(sec.style) ? sec.style : 'grey';
+    const row = el('div', `logo-row logos-${style}`);
+    row.dataset.entries = `${path}.items`;
+    (sec.items || []).forEach((item, n) => {
+      if (!item || !item.src) return;
+      const url = item.url && safeUrl(item.url.trim());
+      const wrap = url ? el('a', 'logo-item') : el('span', 'logo-item');
+      wrap.dataset.entry = `${path}.items.${n}`;
+      if (url) { wrap.href = url; wrap.target = '_blank'; wrap.rel = 'noopener'; }
+      wrap.appendChild(picture(item.src, item.alt));
+      row.appendChild(wrap);
+    });
+    return [row.children.length ? row : null];
+  },
+
+  numbers(sec, path) {
+    const grid = el('div', 'number-grid');
+    grid.dataset.entries = `${path}.items`;
+    (sec.items || []).forEach((item, n) => {
+      if (!item || !((item.value || '').trim() || (item.label || '').trim())) return;
+      const box = el('div', 'number-item');
+      box.dataset.entry = `${path}.items.${n}`;
+      box.append(field(el('strong', 'number-value', item.value), `${path}.items.${n}.value`),
+        field(formatted(el('span', 'number-label'), item.label), `${path}.items.${n}.label`));
+      grid.appendChild(box);
+    });
+    return [grid.children.length ? grid : null];
+  },
+
+  faq(sec, path) {
+    const list = el('div', 'faq-list');
+    Object.assign(list.dataset, { entries: `${path}.items`, axis: 'y' });
+    (sec.items || []).forEach((item, n) => {
+      if (!item || !(item.q || '').trim()) return;
+      const entry = el('details', 'faq-item');
+      entry.dataset.entry = `${path}.items.${n}`;
+      // Open while editing, so the answer can be typed in
+      entry.open = isEditing();
+      const question = el('summary');
+      question.appendChild(field(formatted(el('span'), item.q), `${path}.items.${n}.q`));
+      entry.append(question, richText(item.a, 'faq-answer', `${path}.items.${n}.a`));
+      list.appendChild(entry);
+    });
+    return [list.children.length ? list : null];
+  },
+
+  cta(sec, path) {
+    return [
+      sec.text ? field(formatted(el('p', 'cta-line'), sec.text), `${path}.text`) : null,
+      sec.sub ? field(formatted(el('p', 'cta-sub'), sec.sub), `${path}.sub`) : null,
+      sectionButtons(sec),
+    ];
+  },
+};
+
+// What a part of an added section is called (content.sections.<id>.blockOrder / blockLook use these names)
+const BLOCK_CLASSES = [['section-title', 'title'], ['section-sub', 'intro'], ['rich-text', 'text'], ['custom-buttons', 'buttons'],
+  ['custom-text', 'heading'], ['gallery-grid', 'gallery'], ['reel-frame', 'video'], ['video-caption', 'caption'], ['quote-grid', 'quotes'],
+  ['logo-row', 'logos'], ['number-grid', 'numbers'], ['faq-list', 'faq'], ['cta-line', 'line'], ['cta-sub', 'sub']];
+const blockName = (node) => (BLOCK_CLASSES.find(([cls]) => node.classList.contains(cls)) || [null, 'part'])[1];
+
 function renderCustomSections(content) {
   const list = Array.isArray(content.customSections) ? content.customSections : [];
   const main = document.getElementById('top');
@@ -1489,35 +2248,36 @@ function renderCustomSections(content) {
       node.id = sec.id;
       main.appendChild(node);
     }
-    const image = sec.image ? assetUrl(sec.image) : '';
-    node.classList.toggle('has-side-image', Boolean(image && sec.imagePlace === 'side'));
+    const type = SECTION_TYPES.includes(sec.type) ? sec.type : 'text';
+    const path = `customSections.${i}`;
+    SECTION_TYPES.forEach((name) => node.classList.toggle(`type-${name}`, name === type));
+    const image = type === 'text' && sec.image ? assetUrl(sec.image) : '';
+    const place = ['side', 'side-left', 'above'].includes(sec.imagePlace) ? sec.imagePlace : 'below';
+    node.classList.toggle('has-side-image', Boolean(image && place.startsWith('side')));
+    node.classList.toggle('image-left', Boolean(image && place === 'side-left'));
+    node.classList.toggle('image-above', Boolean(image && place === 'above'));
+    node.classList.toggle('is-centered', (sec.align || (type === 'cta' ? 'center' : 'left')) === 'center');
     node.dataset.part = sec.id;
-    node.dataset.editItem = `customSections.${i}`;
+    node.dataset.editItem = path;
 
     const title = (sectionSettings(content, sec.id).title || sec.title || '').trim();
     const heading = node.querySelector('.section-title') || el('h2', 'section-title reveal');
     setSectionTitle(heading, title);
-    const body = el('div', 'custom-body');
-    String(sec.text || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).forEach((p) => body.appendChild(el('p', null, p)));
-    const label = sec.button && sec.button.label && sec.button.label.trim();
-    const url = sec.button && safeUrl((sec.button.url || '').trim());
-    if (label && url) {
-      const btn = el('a', 'btn btn-primary', label);
-      btn.href = url;
-      if (/^https?:/i.test(url)) { btn.target = '_blank'; btn.rel = 'noopener'; }
-      body.appendChild(btn);
-    }
+    const intro = sec.intro && sec.intro.trim() ? field(formatted(el('p', 'section-sub'), sec.intro), `${path}.intro`) : null;
+    const [first, ...rest] = SECTION_BODIES[type](sec, path, title).filter(Boolean);
     const inner = el('div', 'container custom-inner');
-    const text = el('div', 'custom-text');
-    text.append(...[title ? heading : null, body].filter(Boolean));
-    inner.appendChild(text);
+    const head = el('div', 'custom-text');
+    // A Text section's text and buttons sit in the same column as its title (beside a side picture)
+    head.append(...[title ? heading : null, intro, ...(type === 'text' ? [first, ...rest] : [])].filter(Boolean));
+    inner.appendChild(head);
+    if (type !== 'text') inner.append(...[first, ...rest].filter(Boolean));
+    // The parts that can be moved and adjusted (see applyBlocks): a Text section's are in its text column
+    const blocks = type === 'text' ? head : inner;
+    blocks.dataset.blocks = '';
+    [...blocks.children].forEach((child) => { child.dataset.block = blockName(child); });
     if (image) {
       const figure = el('figure', 'custom-image');
-      const img = el('img');
-      img.src = image;
-      img.alt = sec.imageAlt || '';
-      img.loading = 'lazy';
-      figure.appendChild(img);
+      figure.appendChild(picture(sec.image, sec.imageAlt));
       inner.appendChild(figure);
     }
     // Pencils from the admin panel live on the section itself, so keep them
@@ -1552,63 +2312,206 @@ function applySections(content) {
     if (section && main.lastElementChild !== section) main.appendChild(section);
   });
 
-  // The menu: one link per section that wants one, in page order
+  // Section titles can be typed in on the page (admin panel); empty keeps the standard title
+  order.forEach((id) => {
+    const heading = document.getElementById(id) && document.getElementById(id).querySelector('.section-title');
+    if (heading) field(heading, `sections.${id}.title`);
+  });
+  document.querySelectorAll('.featured .subsection-title').forEach((heading) => field(heading, 'sections.highlights.title'));
+
+  // The menu: one link per section that wants one, in page order (a section shown only on phones or only
+  // on computers has its menu link only there too)
   const nav = document.getElementById('main-nav');
   const langs = nav.querySelector('.nav-langs');
   nav.querySelectorAll(':scope > a').forEach((link) => link.remove());
-  order.forEach((id) => {
+  anchorTargets = {};
+  // The home page's sections (from another page they lead back to the home page), then the other pages
+  const home = currentPageId ? sectionOrder(content, '') : order;
+  if (currentPageId) order.forEach((id) => sectionLink(content, id));
+  home.forEach((id) => {
+    const name = sectionLink(content, id);
     const text = sectionNavText(content, id);
-    if (!sectionSettings(content, id).inMenu || !text) return;
-    const link = el('a', null, text);
-    link.href = `#${id}`;
+    const set = sectionSettings(content, id);
+    if (!set.inMenu || !text) return;
+    const link = el('a', set.device === 'all' ? null : `only-${set.device}`, text);
+    link.href = currentPageId ? `${homeHref()}#${name}` : `#${name}`;
+    if (currentPageId) Object.assign(link.dataset, { page: '', hash: name });
     nav.insertBefore(link, langs);
+  });
+  pagesOf(content).forEach((page) => {
+    if (page.inMenu === false) return;
+    const link = el('a', page.id === currentPageId ? 'is-current' : null, (page.nav || '').trim() || (page.title || '').trim() || page.slug);
+    link.href = pageHref(page);
+    link.dataset.page = page.id;
+    if (page.id === currentPageId) link.setAttribute('aria-current', 'page');
+    nav.insertBefore(link, langs);
+  });
+  // The logo leads home
+  const logo = document.querySelector('[data-site="logo"]');
+  logo.href = currentPageId ? homeHref() : '#top';
+  if (currentPageId) logo.dataset.page = '';
+  else delete logo.dataset.page;
+}
+
+// ---------- Blocks: the parts of a section ----------
+// Each section's parts (title, intro, text, video, list…) can be put in another order and adjusted
+// (admin panel: on the page, or Look and layout). content.sections.<id>:
+//   blockOrder: ["intro", "title", …] (parts not listed keep their place after these)
+//   blockLook: { title: { align: "left" | "center" | "right", space: -2…4 (steps of 20px above), width: "" | "medium" | "narrow" } }
+// Added sections name their parts in renderCustomSections; the built-in ones are found here.
+const BUILTIN_BLOCKS = {
+  about: ['.about-text', { title: '.section-title', bio: '#about-bio', skills: '.skills' }],
+  reel: [':scope > .container', { title: '.section-title', intro: '.section-intro', video: '.reel-frame' }],
+  work: [':scope > .container', { title: '.section-title', intro: '.section-intro', highlights: '.featured', filters: '.filter-bar', grid: '.work-grid' }],
+  experience: [':scope > .container', { title: '.section-title', list: '.timeline' }],
+  toolkit: [':scope > .container', { title: '.section-title', list: '.toolkit' }],
+  contact: ['.contact-inner', { title: '.section-title', intro: '.section-intro', formtitle: '.subsection-title', form: '.contact-form', alt: '.contact-alt' }],
+};
+BUILTIN_BLOCKS.grid = BUILTIN_BLOCKS.work;
+const BLOCK_SPACE = 20;
+
+function applyBlocks(content) {
+  sectionOrder(content).forEach((id) => {
+    const section = document.getElementById(id);
+    if (!section) return;
+    const set = sectionSettings(content, id);
+    const builtin = BUILTIN_BLOCKS[set.kind];
+    if (builtin && !section.classList.contains('custom-section')) {
+      const container = section.querySelector(builtin[0]);
+      if (!container) return;
+      container.dataset.blocks = '';
+      Object.entries(builtin[1]).forEach(([name, selector]) => {
+        const node = container.querySelector(`:scope > ${selector}`);
+        if (node) node.dataset.block = name;
+      });
+    }
+    const order = Array.isArray(set.blockOrder) ? set.blockOrder : [];
+    const looks = set.blockLook && typeof set.blockLook === 'object' ? set.blockLook : {};
+    section.querySelectorAll('[data-blocks]').forEach((container) => {
+      const blocks = [...container.children].filter((child) => child.dataset.block);
+      const names = blocks.map((b) => b.dataset.block);
+      const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length + names.indexOf(name));
+      const moved = names.some((name, i) => i > 0 && rank(name) < rank(names[i - 1]));
+      const spaced = blocks.some((b) => Number((looks[b.dataset.block] || {}).space));
+      // Only rearranged (or spaced) parts become a column of their own; otherwise the page is as it was
+      container.classList.toggle('has-blocks', moved || spaced);
+      blocks.forEach((block) => {
+        const look = looks[block.dataset.block] || {};
+        block.style.order = moved ? String(rank(block.dataset.block)) : '';
+        ['left', 'center', 'right'].forEach((a) => block.classList.toggle(`align-${a}`, look.align === a));
+        ['medium', 'narrow'].forEach((w) => block.classList.toggle(`width-${w}`, look.width === w));
+        block.style.marginTop = '';
+        const space = Math.min(Math.max(Math.round(Number(look.space) || 0), -2), 4);
+        if (space) block.style.marginTop = `${Math.max(parseFloat(getComputedStyle(block).marginTop) + space * BLOCK_SPACE, 0)}px`;
+      });
+    });
   });
 }
 
-// Background, title style and size of each section. A small-titled section on the same background as
-// the one above sits right under it, like a part of it (Experience and Toolkit under Work).
+// Light or dark text for a background colour ("#rrggbb")
+function isLightColor(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return false;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55;
+}
+
+// Background, title style and size, width, spacing and devices of each section. A small-titled section on
+// the same background as the one above sits right under it, like a part of it (Experience and Toolkit under Work).
 function applySectionLook(content) {
+  lookContent = content;
   let previous = null;
   let first = true;
   sectionOrder(content).forEach((id) => {
     const section = document.getElementById(id);
     if (!section) return;
+    // The top section has its own look; the section after it starts fresh (it fades into it)
+    if (id === 'hero') {
+      previous = null;
+      first = true;
+      return;
+    }
     const set = sectionSettings(content, id);
+    const custom = set.background === 'custom';
+    // The second version (dark and light for visitors): its own colour (made from the first unless set),
+    // its own picture if there is one, and on light a picture can be lightened instead of darkened
+    const mode = shownMode();
+    const other = modeSet.switchable && mode !== modeSet.main;
+    const image = custom && set.bgImage ? assetUrl(other && set.bgImageOther ? set.bgImageOther : set.bgImage) : '';
+    const colour = !custom ? '' : !other ? set.bgColor : isHexColor(set.bgColorOther) ? set.bgColorOther : otherBackground(set.bgColor, mode);
+    const lighten = Boolean(image) && other && mode === 'light' && set.bgOther === 'light';
     section.classList.toggle('bg-main', set.background === 'main');
     section.classList.toggle('bg-alt', set.background === 'alt');
+    section.classList.toggle('bg-custom', custom);
+    // Text on a picture is light (the picture is darkened) or dark (lightened); on a colour, whatever reads on it
+    section.classList.toggle('tone-light', custom && (image ? !lighten : !isLightColor(colour)));
+    section.classList.toggle('tone-dark', custom && (image ? lighten : isLightColor(colour)));
+    section.style.backgroundColor = custom && isHexColor(colour) ? colour : '';
+    const shade = lighten ? `rgba(255, 255, 255, ${set.bgDarken / 100})` : `rgba(0, 0, 0, ${set.bgDarken / 100})`;
+    section.style.backgroundImage = image ? `linear-gradient(${shade}, ${shade}), url("${cssString(image)}")` : '';
     section.classList.toggle('title-small', set.titleStyle === 'small');
     section.style.setProperty('--title-scale', String(set.titleSize / 100));
+    SECTION_CHOICES.width.forEach((w) => section.classList.toggle(`width-${w}`, w !== 'normal' && w === set.width));
+    SECTION_CHOICES.spacing.forEach((s) => section.classList.toggle(`space-${s}`, s !== 'normal' && s === set.spacing));
+    if (set.layout) section.dataset.layout = set.layout;
+    else delete section.dataset.layout;
+    section.classList.toggle('only-desktop', set.device === 'desktop');
+    section.classList.toggle('only-phone', set.device === 'phone');
     if (section.classList.contains('is-removed')) return;
-    section.classList.toggle('is-joined', Boolean(previous && set.titleStyle === 'small' && previous.background === set.background));
+    const sameBackground = previous && previous.background === set.background
+      && (!custom || (previous.bgColor === set.bgColor && !previous.bgImage && !set.bgImage));
+    section.classList.toggle('is-joined', Boolean(sameBackground && set.titleStyle === 'small'));
     section.classList.toggle('is-first', first);
     first = false;
     previous = set;
   });
 }
 
-// The top section fades into whichever section comes first
+// The top section fades into whichever section comes after it (or the footer)
 function matchHeroFade() {
-  const first = sectionOrder(currentContent).map((id) => document.getElementById(id))
+  const order = sectionOrder(currentContent);
+  const after = order.slice(order.indexOf('hero') + 1).map((id) => document.getElementById(id))
     .find((s) => s && !s.classList.contains('is-removed'));
   const hero = document.querySelector('.hero');
-  if (first) hero.style.setProperty('--after-hero', getComputedStyle(first).backgroundColor);
+  const next = after || document.querySelector('.site-footer');
+  if (!next) return;
+  // The colour it's set to, not the one it shows: while dark and light fade over, that's still the old one
+  const colour = next.classList.contains('bg-main') || next.classList.contains('site-footer') ? 'var(--bg)'
+    : next.classList.contains('bg-alt') ? 'var(--bg-alt)'
+      : next.style.backgroundColor || getComputedStyle(next).backgroundColor;
+  hero.style.setProperty('--after-hero', colour);
 }
 
 let currentContent = {};
 
+let pageChecked = false;
+
 // Takes the full content (all languages) and shows it in the current language
 function renderSite(fullContent) {
   currentContent = fullContent;
+  if (!pageChecked) {
+    pageChecked = true;
+    currentPageId = pageFromUrl(fullContent);
+  }
+  // A page that no longer exists (deleted, or undone): back to the home page
+  if (currentPageId && !pagesOf(fullContent).some((pg) => pg.id === currentPageId)) currentPageId = '';
   updateLanguages(fullContent);
   const content = localize(fullContent);
   categories = Array.isArray(content.categories) && content.categories.length ? content.categories : DEFAULT_CATEGORIES;
   applyTheme(content.theme);
   applyCursor(content.theme && content.theme.cursor);
   renderIdentity(content.site || {}, content.theme);
+  const page = pagesOf(content).find((pg) => pg.id === currentPageId);
+  if (page && (page.title || '').trim()) document.title = `${page.title.trim()} · ${document.title}`;
   workItems = content.work || [];
+  projectSlugs = slugsFor(workItems);
+  projectView = fullContent.projectView === 'page' ? 'page' : 'popup';
   renderCustomSections(content);
   renderExtraGrids(content.workGrids || []);
   applySections(content);
+  // How the contact form sends, and the line under it that says so
+  formSettings = { service: '', key: '', ...(fullContent.contactForm || {}) };
+  document.querySelector('.form-note').dataset.i18n = formService() ? 'contact.noteDirect' : 'contact.note';
   applyUiText(document);
   renderTexts(content);
   renderHeroMedia(content.hero || {});
@@ -1627,27 +2530,140 @@ function renderSite(fullContent) {
   renderExperience(content.experience || []);
   renderToolkit(content.toolkit || []);
   applySectionLook(content);
+  applyBlocks(content);
   matchHeroFade();
 }
 
 // Exposed so the admin panel can live-preview edits
 window.renderSite = renderSite;
 
-// Contact form -> mailto (address comes from links.email in content/site.js)
+// ---------- Contact form ----------
+// content.contactForm = { service: "web3forms" | "formspree" | "", key }. With a service, the message is
+// sent from the page (the service emails it to you); without one, sending opens the visitor's email app
+// with the message filled in (to links.email). If sending fails, the visitor can still send it by email.
+// admin: Site tab, Links.
 const contactForm = document.getElementById('contact-form');
+const formStatus = document.getElementById('form-status');
+let formSettings = { service: '', key: '' };
 
-contactForm.addEventListener('submit', (e) => {
+const FORM_SERVICES = {
+  web3forms: (key, f) => ['https://api.web3forms.com/submit', {
+    access_key: key, name: f.name, email: f.email, subject: f.subject || `${siteName}: new message`, message: f.message, from_name: f.name,
+  }],
+  formspree: (key, f) => [`https://formspree.io/f/${encodeURIComponent(key)}`, {
+    name: f.name, email: f.email, _subject: f.subject || `${siteName}: new message`, message: f.message,
+  }],
+};
+
+const formService = () => (FORM_SERVICES[formSettings.service] && String(formSettings.key || '').trim() ? formSettings.service : '');
+
+const mailBody = (f) => `${f.message}\n\nFrom: ${f.name} (${f.email})`;
+
+function mailtoFor(f) {
+  return `mailto:${contactEmail}?subject=${encodeURIComponent(f.subject)}&body=${encodeURIComponent(mailBody(f))}`;
+}
+
+// Mail websites that can open a new email with everything filled in
+const WEBMAILS = [
+  { name: 'Gmail', domains: /^(gmail|googlemail)\.com$/, url: (to, subject, body) => `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}` },
+  { name: 'Outlook', domains: /^(outlook|hotmail|live|msn)\.[a-z.]+$/, url: (to, subject, body) => `https://outlook.live.com/mail/0/deeplink/compose?to=${to}&subject=${subject}&body=${body}` },
+  { name: 'Yahoo Mail', domains: /^(yahoo|ymail|rocketmail)\.[a-z.]+$/, url: (to, subject, body) => `https://compose.mail.yahoo.com/?to=${to}&subject=${subject}&body=${body}` },
+];
+
+const webmailUrl = (mail, f) => mail.url(encodeURIComponent(contactEmail), encodeURIComponent(f.subject), encodeURIComponent(mailBody(f)));
+
+// The mail website the visitor uses, told by the address they typed (sam@gmail.com: Gmail); null for
+// addresses that don't say (a work or school address could be on any of them)
+function webmailFor(address) {
+  const domain = String(address).split('@')[1] || '';
+  return WEBMAILS.find((mail) => mail.domains.test(domain.toLowerCase())) || null;
+}
+
+// The ways to send the message: each mail website with it filled in, the email app (withApp), or a copy
+// to paste into an email
+function emailOptions(f, withApp) {
+  const link = (label, href) => {
+    const a = el('a', null, label);
+    a.href = href;
+    if (/^https:/.test(href)) { a.target = '_blank'; a.rel = 'noopener'; }
+    return a;
+  };
+  const copy = el('button', 'form-copy', t('contact.copy'));
+  copy.type = 'button';
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(`${contactEmail}\n${f.subject}\n\n${mailBody(f)}`);
+      copy.textContent = t('contact.copied').replace('{email}', contactEmail);
+    } catch {
+      copy.textContent = contactEmail; // no clipboard here: at least the address to write to
+    }
+  });
+  const items = [
+    ...WEBMAILS.map((mail) => link(mail.name, webmailUrl(mail, f))),
+    withApp ? link(t('contact.emailApp'), mailtoFor(f)) : null,
+    copy,
+  ].filter(Boolean);
+  const list = el('span', 'form-options');
+  items.forEach((item, i) => list.append(i ? ' · ' : '', item));
+  return list;
+}
+
+// `f`: the message, to offer the other ways to send it (`withApp`: the email app among them)
+function showFormStatus(text, kind, f, withApp) {
+  formStatus.hidden = false;
+  formStatus.className = `form-status is-${kind}`;
+  formStatus.textContent = text;
+  if (f && contactEmail) formStatus.append(' ', emailOptions(f, withApp));
+}
+
+// Sends one message through the service set; throws if it doesn't arrive. Used by the admin panel's test too.
+async function sendMessage(f, settings = formSettings) {
+  const [url, data] = FORM_SERVICES[settings.service](String(settings.key).trim(), f);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.success === false) throw new Error(result.message || (result.errors && result.errors[0] && result.errors[0].message) || response.statusText);
+}
+window.SiteContact = { send: sendMessage };
+
+contactForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-
-  const name = document.getElementById('name').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const subject = document.getElementById('subject').value.trim();
-  const message = document.getElementById('message').value.trim();
-
-  const body = `${message}\n\nFrom: ${name} (${email})`;
-  const mailtoUrl = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-  window.location.href = mailtoUrl;
+  const value = (id) => document.getElementById(id).value.trim();
+  const f = { name: value('name'), email: value('email'), subject: value('subject'), message: value('message') };
+  // No service: the visitor's own mail website opens in a new tab with the email written (Gmail for a
+  // Gmail address…), ready to send. An address that doesn't say which one gets the choice instead.
+  if (!formService()) {
+    const mail = webmailFor(f.email);
+    const tab = mail ? window.open(webmailUrl(mail, f), '_blank') : null;
+    if (tab) {
+      tab.opener = null;
+      formStatus.hidden = true;
+    } else {
+      showFormStatus(t('contact.pickMail'), 'busy', f, true);
+    }
+    return;
+  }
+  // Filled in by a robot: act as if it was sent
+  if (value('website')) {
+    contactForm.reset();
+    showFormStatus(t('contact.sent'), 'ok');
+    return;
+  }
+  const button = contactForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  showFormStatus(t('contact.sending'), 'busy');
+  try {
+    await sendMessage(f);
+    contactForm.reset();
+    showFormStatus(t('contact.sent'), 'ok');
+  } catch {
+    showFormStatus(`${t('contact.failed')} ${t('contact.failedEmail')}:`, 'error', f, true);
+  } finally {
+    button.disabled = false;
+  }
 });
 
 // Project detail modal
@@ -1687,6 +2703,10 @@ function showMedia(index) {
     img.src = assetUrl(entry.img.src);
     img.alt = entry.img.alt || modalItem.title || '';
     modalThumb.appendChild(img);
+    if (modalItem.isGallery) {
+      modalDesc.textContent = entry.img.caption || '';
+      modalDesc.hidden = !modalDesc.textContent;
+    }
   } else if (entry.clip.video) {
     const { clip } = entry;
     const video = document.createElement('video');
@@ -1755,11 +2775,75 @@ function buildMediaPicker(item) {
   });
 }
 
-function openModal(card) {
-  const item = workItems[Number(card.dataset.index)];
-  if (!item) return;
-  const thumbSource = card.querySelector('.card-thumb');
+// ---------- Project addresses ----------
+// Every project has an address, ?project=<name>: its link name (item.slug) or its title, in lowercase with
+// dashes. Opening a project puts it in the address bar, so it can be shared, and the back button closes it.
+// content.projectView: "popup" (the default) opens it over the page; "page" shows it as a page of its own,
+// with a button back.
+let projectSlugs = [];
+let projectView = 'popup';
+let openProjectIndex = null; // the project shown, by its place in content.work
+let projectPushed = false; // its address was added to the history (so closing goes back)
+let beforeProject = { scroll: 0, title: '' };
 
+const slugOf = (text) => String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+// Two projects with the same name: the second gets -2, and so on
+function slugsFor(items) {
+  const seen = new Map();
+  return items.map((item) => {
+    const base = slugOf(item.slug) || slugOf(item.title) || 'project';
+    const n = (seen.get(base) || 0) + 1;
+    seen.set(base, n);
+    return n > 1 ? `${base}-${n}` : base;
+  });
+}
+
+// Used by the admin panel (a project's link)
+window.SiteProjects = {
+  slugs: slugsFor,
+  link: (slug) => `${window.location.origin}${window.location.pathname}?project=${encodeURIComponent(slug)}`,
+};
+
+// The address with ?project=… set (a slug) or taken out (''), keeping the rest
+function projectUrl(slug) {
+  const params = new URLSearchParams(window.location.search);
+  if (slug) params.set('project', slug);
+  else params.delete('project');
+  const query = params.toString();
+  return `${window.location.pathname}${query ? `?${query}` : ''}${slug ? '' : window.location.hash}`;
+}
+
+function projectFromUrl() {
+  const slug = new URLSearchParams(window.location.search).get('project');
+  const index = slug ? projectSlugs.indexOf(slug) : -1;
+  return index >= 0 && workItems[index] && (!workItems[index].draft || showDrafts()) ? index : -1;
+}
+
+function openProject(index, { push = true, card = null } = {}) {
+  const item = workItems[index];
+  if (!item) return;
+  if (openProjectIndex === null) beforeProject = { scroll: window.scrollY, title: document.title };
+  if (push) {
+    history.pushState(null, '', projectUrl(projectSlugs[index]));
+    projectPushed = true;
+  }
+  openProjectIndex = index;
+  fillProject(item, card ? card.querySelector('.card-thumb') : buildThumb(item));
+  document.title = `${item.title} · ${beforeProject.title}`;
+  lastFocusedCard = card || lastFocusedCard;
+  const asPage = projectView === 'page';
+  document.documentElement.classList.toggle('is-project-page', asPage);
+  modal.querySelector('.modal').setAttribute('aria-modal', String(!asPage));
+  modalClose.textContent = asPage ? `← ${t('work.back')}` : '×';
+  modal.hidden = false;
+  if (asPage) window.scrollTo({ top: 0, behavior: 'instant' });
+  else document.body.style.overflow = 'hidden';
+  modalClose.focus({ preventScroll: true });
+}
+
+function fillProject(item, thumbSource) {
   modalThumb.className = 'modal-thumb';
   modalThumb.style.setProperty('--tile', thumbSource.style.getPropertyValue('--tile'));
 
@@ -1769,11 +2853,16 @@ function openModal(card) {
   if (projectMedia(item).length) showMedia(0);
   else modalThumb.innerHTML = thumbSource.innerHTML;
 
+  modal.classList.remove('is-gallery');
+  modalTag.hidden = false;
   modalTag.textContent = typeLabel(item.type);
   modalTitle.textContent = item.title;
+  modalTitle.hidden = false;
   modalMeta.textContent = [item.client, item.year, item.role].filter(Boolean).join(' · ');
   modalMeta.hidden = !modalMeta.textContent;
-  modalDesc.textContent = item.desc || item.teaser;
+  modalDesc.hidden = false;
+  modalDesc.textContent = '';
+  inlineText(modalDesc, item.desc || item.teaser);
 
   modalTools.innerHTML = '';
   (item.tools || []).filter(Boolean).forEach((tool) => modalTools.appendChild(el('span', 'skill-tag', tool)));
@@ -1788,29 +2877,73 @@ function openModal(card) {
     link.rel = 'noopener';
     modalLinks.appendChild(link);
   });
+}
 
-  lastFocusedCard = card;
+// A Gallery section's pictures in the same pop-up, with its title and each picture's caption
+function openPictures(images, index, title, opener) {
+  modalItem = { title, images, videos: [], isGallery: true };
+  modalClose.textContent = '\u00D7';
+  modal.classList.add('is-gallery');
+  modalThumb.className = 'modal-thumb';
+  modalTag.hidden = true;
+  modalTitle.textContent = title;
+  modalTitle.hidden = !title;
+  modalMeta.hidden = true;
+  modalTools.innerHTML = '';
+  modalLinks.innerHTML = '';
+  buildMediaPicker(modalItem);
+  showMedia(index);
+  lastFocusedCard = opener;
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
   modalClose.focus();
 }
 
+// Closing a project also takes it out of the address: back through the history when opening it added
+// it there, so the back button doesn't open it again
 function closeModal() {
+  if (openProjectIndex !== null) {
+    if (projectPushed) {
+      history.back(); // popstate hides it
+      return;
+    }
+    history.replaceState(null, '', projectUrl(''));
+  }
+  hideModal();
+}
+
+function hideModal() {
+  const wasPage = document.documentElement.classList.contains('is-project-page');
   modal.hidden = true;
   modalThumb.innerHTML = ''; // stops any playing video
   document.body.style.overflow = '';
-  if (lastFocusedCard && lastFocusedCard.isConnected) lastFocusedCard.focus();
+  document.documentElement.classList.remove('is-project-page');
+  if (openProjectIndex !== null) {
+    document.title = beforeProject.title;
+    if (wasPage) window.scrollTo({ top: beforeProject.scroll, behavior: 'instant' });
+  }
+  openProjectIndex = null;
+  projectPushed = false;
+  if (lastFocusedCard && lastFocusedCard.isConnected) lastFocusedCard.focus({ preventScroll: wasPage });
 }
 
 modalClose.addEventListener('click', closeModal);
 
+// A menu link (#work…) while a project is shown as a page: back to the sections first, then on to it
+document.addEventListener('click', (e) => {
+  const link = e.target.closest && e.target.closest('a[href^="#"]');
+  if (!link || !document.documentElement.classList.contains('is-project-page')) return;
+  history.replaceState(null, '', projectUrl(''));
+  hideModal();
+}, true);
+
 modal.addEventListener('click', (e) => {
-  if (e.target === modal) closeModal();
+  if (e.target === modal && !document.documentElement.classList.contains('is-project-page')) closeModal();
 });
 
 document.addEventListener('keydown', (e) => {
   if (modal.hidden) return;
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape' && !document.documentElement.classList.contains('is-project-page')) closeModal();
   // Arrow keys move through the pictures and videos (not while typing or using a video's own controls)
   else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !(e.target.closest && e.target.closest('video, input, textarea'))) {
     if (projectMedia(modalItem).length > 1) showMedia(mediaIndex + (e.key === 'ArrowLeft' ? -1 : 1));
@@ -1819,7 +2952,21 @@ document.addEventListener('keydown', (e) => {
 
 applyLanguage();
 renderSite(window.SITE_CONTENT || {});
+if (window.location.hash) scrollToAnchor(hashName(window.location.hash), false);
+if (projectFromUrl() >= 0) openProject(projectFromUrl(), { push: false });
+else if (new URLSearchParams(window.location.search).has('project')) {
+  // An old link (the project was renamed or removed)
+  history.replaceState(null, '', projectUrl(''));
+  showNote(t('work.missing'));
+}
 if (pendingSave) showSaveNote(pendingSave.age);
+// Sent here by 404.html from an address that doesn't exist: say so, and tidy the address
+if (new URLSearchParams(window.location.search).has('missing')) {
+  const params = new URLSearchParams(window.location.search);
+  params.delete('missing');
+  history.replaceState(null, '', `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`);
+  showNote(t('site.missing'));
+}
 loadAnalytics((window.SITE_CONTENT || {}).analytics);
 
 // Cloudflare Web Analytics: only loads once a token is set (admin panel, Site tab),
@@ -1852,10 +2999,10 @@ document.addEventListener('keydown', (e) => {
   adminLoading = true;
   const style = document.createElement('link');
   style.rel = 'stylesheet';
-  style.href = 'css/admin.css';
+  style.href = `css/admin.css${CODE_VERSION}`;
   document.head.appendChild(style);
   const script = document.createElement('script');
-  script.src = 'js/admin.js';
+  script.src = `js/admin.js${CODE_VERSION}`;
   script.onload = () => window.SiteAdmin.toggle();
   script.onerror = () => { adminLoading = false; };
   document.body.appendChild(script);
@@ -1866,23 +3013,45 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 const revealHeadings = document.querySelectorAll('.reveal');
 
 // Also used when the language changes (see applyUiText)
+// The text may have formatting (bold, italic, spacing): each letter goes inside the marks around it.
+// dataset.raw keeps the text as typed, aria-label the words alone.
 function setRevealText(heading, text) {
-  heading.setAttribute('aria-label', text);
+  heading.dataset.raw = text;
+  heading.setAttribute('aria-label', plainText(text));
   heading.textContent = '';
+  const letters = [];
+  const walk = (nodes, marks) => nodes.forEach((node) => {
+    if (typeof node === 'string') [...node].forEach((ch) => letters.push({ ch, marks }));
+    else walk(node.children, [...marks, node]);
+  });
+  walk(parseInline(text), []);
   let i = 0;
-  text.split(' ').forEach((word, w) => {
-    if (w > 0) heading.appendChild(document.createTextNode(' '));
-    const wordEl = document.createElement('span');
-    wordEl.className = 'reveal-word';
-    wordEl.setAttribute('aria-hidden', 'true');
-    [...word].forEach((ch) => {
-      const charEl = document.createElement('span');
-      charEl.className = 'reveal-char';
-      charEl.style.setProperty('--i', i++);
-      charEl.textContent = ch;
-      wordEl.appendChild(charEl);
+  let wordEl = null;
+  let open = []; // [{ node, box }]: the marks the last letter was in, outermost first
+  letters.forEach(({ ch, marks }) => {
+    if (ch === ' ') {
+      heading.appendChild(document.createTextNode(' '));
+      wordEl = null;
+      return;
+    }
+    if (!wordEl) {
+      wordEl = el('span', 'reveal-word');
+      wordEl.setAttribute('aria-hidden', 'true');
+      heading.appendChild(wordEl);
+      open = [];
+    }
+    // Stays in the marks it shares with the letter before, opens the rest
+    let same = 0;
+    while (same < open.length && same < marks.length && open[same].node === marks[same]) same += 1;
+    open = open.slice(0, same);
+    marks.slice(same).forEach((node) => {
+      const box = inlineTag(node);
+      (open.length ? open[open.length - 1].box : wordEl).appendChild(box);
+      open.push({ node, box });
     });
-    heading.appendChild(wordEl);
+    const charEl = el('span', 'reveal-char', ch);
+    charEl.style.setProperty('--i', i++);
+    (open.length ? open[open.length - 1].box : wordEl).appendChild(charEl);
   });
 }
 

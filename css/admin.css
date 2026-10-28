@@ -44,12 +44,21 @@
 
 .adm-top h2 { white-space: nowrap; }
 
-.adm-top-actions { display: flex; align-items: center; gap: 8px; }
+.adm-top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+.adm-root { container-type: inline-size; }
+/* A narrow panel leaves out the word "Admin" and uses smaller round buttons, so they stay on one line */
+@container (max-width: 520px) {
+  .adm-top h2 { display: none; }
+  .adm-top { justify-content: flex-end; }
+  .adm-top-actions { gap: 4px; }
+  .adm-top-actions .adm-close { width: 30px; height: 30px; }
+}
 
 .adm-help { margin: 0; color: var(--text-dim); }
 .adm-help a { color: var(--accent); text-decoration: underline; }
 
-.adm-field { display: grid; gap: 6px; }
+/* minmax(0, 1fr): a column is as wide as the panel, never as wide as its longest line or option */
+.adm-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 
 .adm-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .adm-check input { width: 16px; height: 16px; accent-color: var(--accent-orange); }
@@ -57,12 +66,12 @@
 /* Top section tab */
 .adm-group-box { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
 .adm-btn.adm-btn-danger:hover { border-color: #e5484d; color: #ff8a8d; }
-.adm-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.adm-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
 .adm-value { margin-left: 4px; color: var(--accent-orange); font-weight: 700; }
 .adm-root input[type="range"] { width: 100%; accent-color: var(--accent-orange); }
 
 @media (max-width: 520px) {
-  .adm-checks { grid-template-columns: 1fr; }
+  .adm-checks { grid-template-columns: minmax(0, 1fr); }
 }
 .adm-label { font-weight: 700; font-size: 0.85rem; }
 .adm-hint { color: var(--text-dim); font-size: 0.82rem; }
@@ -70,6 +79,7 @@
 .adm-path em { color: var(--accent-orange); font-style: normal; }
 
 .adm-root input[type="text"],
+.adm-root input[type="search"],
 .adm-root input[type="url"],
 .adm-root input[type="email"],
 .adm-root input[type="password"],
@@ -92,12 +102,12 @@
 
 .adm-root input[type="file"] { font: inherit; font-size: 0.85rem; color: var(--text-dim); }
 
-.adm-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.adm-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.adm-row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.adm-row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 
 @media (max-width: 480px) {
   .adm-row2,
-  .adm-row3 { grid-template-columns: 1fr; }
+  .adm-row3 { grid-template-columns: minmax(0, 1fr); }
 }
 
 .adm-btn {
@@ -184,7 +194,7 @@
 
 .adm-tab.is-active { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 700; }
 
-.adm-form { display: grid; gap: 14px; }
+.adm-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 
 .adm-section-head {
   display: flex;
@@ -301,31 +311,298 @@
   .adm-root { transition: none; }
 }
 
-/* Editing on the page: items get a pencil on hover; pressing it unlocks that item's text (.adm-active) */
+/* ---------- Editing on the page ----------
+   Text to click and type in, a bar on each section, a small bar on items in lists, and "+ Add" tiles.
+   html.adm-editing: the panel is open; html.adm-previewing: Preview, which hides all of it. */
 /* (The About photo is positioned already; making it relative would pull it out of place) */
-.adm-editing [data-edit-item]:not(.about-photo) { position: relative; }
+.adm-editing [data-edit-item]:not(.about-photo),
+.adm-editing [data-adm-row],
+.adm-editing [data-entry] { position: relative; }
 
-.adm-active {
-  border-radius: 6px;
-  outline: 2px dashed var(--accent);
-  outline-offset: 8px;
+.adm-previewing :is(.adm-pencil, .adm-section-bar, .adm-insert, .adm-item-bar, .adm-add-tile, .adm-edge) { display: none !important; }
+
+/* Bars use the panel's look, whatever the text around them looks like */
+:is(.adm-section-bar, .adm-item-bar, .adm-insert, .adm-add-tile, .adm-typing-hint, .adm-preview-pill) {
+  font-family: "Geologica", "Segoe UI", system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  white-space: nowrap;
 }
 
-.adm-active[data-field],
-.adm-active [data-field] {
-  border-radius: 4px;
+/* Text that can be typed in: an outline on hover */
+.adm-editing:not(.adm-previewing) [data-field]:not(.adm-typing):hover {
+  outline: 1px dashed color-mix(in srgb, var(--accent) 75%, transparent);
+  outline-offset: 4px;
+  border-radius: 3px;
   cursor: text;
 }
 
-.adm-active [data-field]:hover { outline: 1px dashed var(--text-dim); outline-offset: 3px; }
-
-.adm-active[data-field]:focus,
-.adm-active [data-field]:focus {
-  outline: 2px solid var(--accent-orange);
-  outline-offset: 3px;
+/* The text being typed in */
+.adm-typing {
+  outline: 2px solid var(--accent-orange) !important;
+  outline-offset: 4px;
+  border-radius: 3px;
+  cursor: text;
 }
 
-/* Pencils sit on the left, where the open panel doesn't cover them (over the image on work cards and the reel) */
+.adm-typing[data-rich] { white-space: pre-wrap; color: var(--text); }
+.work-card:has(.adm-typing),
+.work-card:has(.adm-typing):hover { transform: none; }
+
+/* Emptied text stays clickable while editing, so it can be filled in again */
+.adm-editing:not(.adm-previewing) [data-field].is-empty:not([hidden]):not(.is-removed) { display: block !important; min-height: 1.4em; }
+.adm-editing:not(.adm-previewing) span[data-field].is-empty:not([hidden]):not(.is-removed),
+.adm-editing:not(.adm-previewing) strong[data-field].is-empty:not([hidden]):not(.is-removed) { display: inline-block !important; min-width: 4em; }
+.adm-editing:not(.adm-previewing) [data-field].is-empty:empty::before {
+  content: "Empty: click to write";
+  color: var(--text-dim);
+  font-style: italic;
+  font-weight: 400;
+  opacity: 0.7;
+}
+/* What goes there, when the page says (e.g. "Dates" on a new timeline entry) */
+.adm-editing:not(.adm-previewing) [data-field][data-placeholder].is-empty:empty::before { content: "+ " attr(data-placeholder); }
+/* Outside the panel these spots don't show at all */
+html:not(.adm-editing) [data-placeholder].is-empty,
+.adm-previewing [data-placeholder].is-empty { display: none !important; }
+
+/* Hidden sections stay in view, faded, so they can be shown again from the page */
+.adm-editing:not(.adm-previewing) main > section.is-removed:not(.is-off-page),
+.adm-editing:not(.adm-previewing) .site-footer.is-removed { display: block !important; opacity: 0.35; }
+.adm-editing:not(.adm-previewing) .about.is-removed:not(.is-off-page) { display: flex !important; }
+.adm-editing:not(.adm-previewing) [data-adm-row].is-removed:hover { opacity: 0.7; }
+
+/* The section open in the panel */
+.adm-editing:not(.adm-previewing) .adm-selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Buttons in the bars */
+.adm-bar-btn,
+.adm-bar-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.adm-bar-btn:hover:not(:disabled),
+.adm-bar-name:hover { border-color: var(--border); background: var(--surface); }
+.adm-bar-btn:disabled { opacity: 0.3; cursor: default; }
+.adm-bar-btn.is-danger:hover { color: #ff8a8d; border-color: #e5484d; }
+.adm-bar-btn[aria-pressed="true"]:not(:has(svg)) { background: var(--accent-orange); color: #fff; }
+.adm-section-bar .adm-bar-btn[aria-pressed="false"]:has(svg) { color: var(--accent-orange); }
+.adm-bar-name { font-weight: 700; }
+
+.adm-bar-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Section bar: top left of the section (the docked panel covers the right), on hover or while open in the panel */
+.adm-section-bar,
+.adm-item-bar {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-alt);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease, visibility 0s linear 0.2s;
+}
+
+.adm-section-bar { top: 12px; left: 12px; }
+
+[data-adm-row]:hover > .adm-section-bar,
+.adm-selected > .adm-section-bar,
+[data-entry]:hover > .adm-item-bar {
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 0s;
+}
+
+/* Item bar: just above the item (over the picture on cards) */
+.adm-item-bar { bottom: 100%; right: 0; padding: 2px; z-index: 31; }
+.adm-item-bar .adm-bar-btn { min-width: 26px; height: 26px; padding: 0 6px; }
+[data-entry]:focus-within > .adm-item-bar { visibility: visible; opacity: 1; transition-delay: 0s; }
+
+/* A project's category, on its card */
+.adm-bar-select {
+  max-width: 130px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* While editing, every category has a filter button; one without projects yet is faded */
+.adm-editing .filter-btn.is-empty { opacity: 0.55; border-style: dashed; }
+.work-card > .adm-item-bar,
+.quote-card > .adm-item-bar,
+.gallery-item > .adm-item-bar { top: 8px; left: 8px; bottom: auto; }
+
+/* "+ Add section" on a section's top edge (and the last one's bottom edge) */
+.adm-insert {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 29;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.adm-insert.is-below { top: auto; bottom: 0; }
+
+.adm-insert-btn {
+  margin-top: -1px;
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 0 0 10px 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 700;
+  pointer-events: auto;
+  cursor: pointer;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease, visibility 0s linear 0.2s;
+}
+
+.adm-insert.is-below .adm-insert-btn { border-radius: 10px 10px 0 0; margin: 0 0 -1px; align-self: flex-end; }
+[data-adm-row]:hover > .adm-insert .adm-insert-btn,
+.adm-insert:has(.adm-insert-menu:not([hidden])) .adm-insert-btn { visibility: visible; opacity: 1; transition-delay: 0s; }
+
+.adm-insert-menu {
+  position: absolute;
+  top: 34px;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-alt);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.adm-insert.is-below .adm-insert-menu { top: auto; bottom: 34px; }
+.adm-insert-menu[hidden] { display: none; }
+.adm-insert-menu .adm-bar-btn { justify-content: flex-start; }
+
+/* "+ Add" at the end of a list */
+.adm-add-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  list-style: none;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  opacity: 0.7;
+}
+
+.adm-add-tile:hover { opacity: 1; border-color: var(--accent); }
+
+.adm-add-tile button {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Small lists (skills, logos): a small tile; long ones (timeline, paragraphs, questions): a slim one */
+.skills > .adm-add-tile,
+.logo-row > .adm-add-tile { display: inline-flex; min-height: 0; border-width: 1px; border-radius: 999px; }
+.skills > .adm-add-tile button,
+.logo-row > .adm-add-tile button { padding: 2px 12px; }
+.timeline > .adm-add-tile,
+#about-bio > .adm-add-tile,
+.toolkit > .adm-add-tile,
+.faq-list > .adm-add-tile { min-height: 40px; margin-top: 12px; }
+.work-grid > .adm-add-tile { min-height: 180px; }
+
+/* Which keys do what, by the text being typed (with formatting: the format bar, see below) */
+.adm-typing-hint {
+  position: absolute;
+  z-index: 40;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+/* Preview: a pill at the bottom to get back to editing */
+.adm-preview-pill {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-alt);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  translate: -50% 0;
+  cursor: pointer;
+}
+
+.adm-preview-pill strong { color: var(--accent); }
+.adm-preview-pill:hover strong { color: var(--accent-orange); }
+.adm-preview-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange); }
+
+/* Touch screens have no hover: the open section's bar shows, item bars stay visible */
+@media (hover: none) {
+  .adm-item-bar { visibility: visible; opacity: 0.9; }
+}
+
+/* ✎ for things without text to type (showreel, photo, links): on the left, where the open panel doesn't cover them */
 .adm-pencil {
   position: absolute;
   top: 10px;
@@ -349,62 +626,23 @@
 [data-edit-item]:focus-within > .adm-pencil,
 .adm-pencil:focus-visible { opacity: 1; }
 
-.adm-active > .adm-pencil { display: none; }
-
 .adm-pencil:hover { background: #fff; color: var(--bg); transform: scale(1.08); }
 
-/* Text items: pencil above the top-right corner, off the text */
-.hero-text > .adm-pencil,
-.section-intro > .adm-pencil,
-.about-text > .adm-pencil,
-.timeline-item > .adm-pencil,
-.toolkit-row > .adm-pencil,
+/* Links: pencil above the top-right corner, off the icons */
 .footer-links > .adm-pencil,
 .contact-socials > .adm-pencil,
 .contact-alt > .adm-pencil { top: -38px; left: auto; right: 0; }
 
-/* Wide screens: put them in the left margin instead, since the right side can be under the panel */
+/* Wide screens: in the left margin instead, since the right side can be under the panel */
 @media (min-width: 1100px) {
-  .hero-text > .adm-pencil,
-  .section-intro > .adm-pencil,
-  .about-text > .adm-pencil,
   .contact-socials > .adm-pencil,
   .contact-alt > .adm-pencil { top: 0; left: -50px; right: auto; }
-  .timeline-item > .adm-pencil { top: 24px; left: -50px; right: auto; }
-  .toolkit-row > .adm-pencil,
   .footer-links > .adm-pencil { top: 50%; left: -48px; right: auto; margin-top: -17px; }
 }
 
-/* Touch screens have no hover, so keep pencils visible */
 @media (hover: none) {
   .adm-pencil { opacity: 0.9; }
 }
-
-/* Done / More… buttons, floating just above the item being edited */
-.adm-inline-bar {
-  position: absolute;
-  bottom: calc(100% + 12px);
-  left: 0;
-  z-index: 4;
-  display: flex;
-  gap: 6px;
-  padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-alt);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  font-family: "Geologica", "Segoe UI", system-ui, sans-serif;
-  font-size: 1rem;
-  font-weight: 400;
-  letter-spacing: normal;
-  text-transform: none;
-  line-height: 1.5;
-}
-
-/* Work cards clip overflow, so the buttons go inside, over the image; and the card stops tilting while edited */
-.work-card > .adm-inline-bar { top: 10px; bottom: auto; left: 10px; }
-.work-card.adm-active,
-.work-card.adm-active:hover { transform: none; }
 
 .adm-group { margin: 6px 0 0; font-size: 1rem; font-weight: 800; }
 
@@ -419,38 +657,144 @@
   100% { box-shadow: 0 0 0 3px transparent; }
 }
 
-/* Theme tab: preset buttons with colour swatches, and the colour pickers */
-.adm-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+/* Theme tab: the Colours box. Heading with Dark / Light and ↺, a row of scheme chips, round colour swatches.
+   Sizes follow the box's own width (cqi), so it scales with the panel: snug when docked narrow, roomier wide. */
+[data-adm-section="colours"] { container-type: inline-size; }
 
-.adm-preset {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
+.adm-colours-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.adm-colours-head .adm-group { margin: 0; margin-right: auto; }
+
+.adm-segs { display: inline-flex; padding: 2px; border: 1px solid var(--border); border-radius: 999px; }
+
+.adm-seg {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-dim);
   font: inherit;
-  font-size: 0.85rem;
-  text-align: left;
+  font-size: clamp(0.72rem, 0.55rem + 0.9cqi, 0.88rem);
   cursor: pointer;
 }
 
-.adm-preset:hover { border-color: var(--accent-orange); }
-.adm-preset.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.adm-seg:hover { color: var(--text); }
+.adm-seg.is-active { background: var(--accent); color: var(--on-accent); }
 
-.adm-swatches { display: flex; gap: 4px; }
+/* "Visitors see: Dark / Light / Both", and with both, one row of colours per version */
+.adm-visitors { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.adm-visitors .adm-label { margin: 0; }
+.adm-version { display: grid; gap: 10px; }
+.adm-version + .adm-version { padding-top: 12px; border-top: 1px solid var(--border); }
+.adm-version-name { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); }
+.adm-bg-versions { gap: 18px; }
 
-.adm-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1px solid rgba(127, 127, 127, 0.4);
+/* After turning on both: the sections with their own background, to check */
+.adm-backgrounds-tip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-alt);
+  font-size: 0.85rem;
 }
 
-.adm-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.adm-backgrounds-tip .adm-icon { margin-left: auto; }
 
-.adm-color { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; cursor: pointer; }
+.adm-chips { display: flex; flex-wrap: wrap; gap: clamp(4px, 1.6cqi, 10px); }
+
+.adm-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: clamp(0.74rem, 0.6rem + 1cqi, 0.92rem);
+}
+
+.adm-chip:hover { border-color: var(--text-dim); }
+.adm-chip.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.adm-chip-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: clamp(3px, 0.8cqi, 6px) clamp(9px, 2.6cqi, 14px) clamp(3px, 0.8cqi, 6px) clamp(4px, 1cqi, 7px);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.adm-chip.is-active .adm-chip-pick { cursor: default; }
+
+.adm-chip-dot {
+  width: clamp(15px, 4.6cqi, 24px);
+  height: clamp(15px, 4.6cqi, 24px);
+  border-radius: 50%;
+  border: 1px solid rgba(127, 127, 127, 0.45);
+}
+
+/* ✕ on saved schemes (and on "Your edits" when not in use): always there, stronger on hover */
+.adm-chip-x {
+  margin: 0 4px 0 -6px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.adm-chip:hover .adm-chip-x, .adm-chip-x:focus-visible { opacity: 1; }
+.adm-chip-x:hover { color: var(--accent-orange); }
+
+.adm-chip-add { padding: clamp(3px, 0.8cqi, 6px) clamp(10px, 3cqi, 16px); border-style: dashed; color: var(--text-dim); cursor: pointer; }
+.adm-chip-add:hover { color: var(--text); }
+
+.adm-root input.adm-chip-name { width: clamp(130px, 40cqi, 220px); padding: 3px 12px; border-radius: 999px; font-size: clamp(0.74rem, 0.6rem + 1cqi, 0.92rem); }
+
+/* Four to a row (the main colours on one line), two when very narrow, more columns when wide; the main
+   and the folded colours share the same columns */
+.adm-colors { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(10px, 3cqi, 18px) 6px; }
+
+@container (max-width: 230px) {
+  .adm-colors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container (min-width: 520px) {
+  .adm-colors { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+}
+
+.adm-color {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  font-size: clamp(0.7rem, 0.55rem + 0.8cqi, 0.85rem);
+  line-height: 1.2;
+  text-align: center;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.adm-color:hover { color: var(--text); }
+
+.adm-root .adm-color input[type="color"] { width: clamp(24px, 8cqi, 44px); height: clamp(24px, 8cqi, 44px); padding: 0; border-color: rgba(127, 127, 127, 0.5); border-radius: 50%; overflow: hidden; }
+.adm-color input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.adm-color input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.adm-color input[type="color"]::-moz-color-swatch { border: 0; border-radius: 50%; }
+
+.adm-more-colours > summary { width: max-content; color: var(--text-dim); font-size: 0.8rem; cursor: pointer; }
+.adm-more-colours > summary:hover { color: var(--text); }
+.adm-more-colours[open] > summary { margin-bottom: 10px; }
 
 .adm-root input[type="color"] {
   flex: none;
@@ -468,10 +812,6 @@
 .adm-check-small { font-size: 0.82rem; color: var(--text-dim); padding-bottom: 9px; }
 .adm-grow { flex: 1; }
 
-@media (max-width: 480px) {
-  .adm-colors { grid-template-columns: 1fr; }
-}
-
 /* Detached: a window over the page, dragged by its title bar and resized from the corner */
 .adm-root.adm-root--floating {
   right: auto;
@@ -483,7 +823,6 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
-  resize: both;
 }
 
 .adm-root--floating .adm-top,
@@ -515,9 +854,11 @@
 .adm-outline-row { margin-bottom: 0; transition: opacity 0.15s ease; }
 .adm-outline-row.is-fixed { border-style: dashed; }
 .adm-outline-row.is-hidden > .adm-entry-head .adm-entry-title { opacity: 0.45; }
-.adm-outline-row.is-dragging { opacity: 0.4; }
-.adm-outline-row.drop-before { box-shadow: 0 -3px 0 var(--accent); }
-.adm-outline-row.drop-after { box-shadow: 0 3px 0 var(--accent); }
+.adm-root .is-dragging { opacity: 0.4; }
+.adm-entry.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+.adm-entry.drop-after { box-shadow: 0 3px 0 var(--accent); }
+.adm-picture.drop-before { box-shadow: -4px 0 0 var(--accent); }
+.adm-picture.drop-after { box-shadow: 4px 0 0 var(--accent); }
 .adm-outline-row.is-open { border-color: var(--accent); }
 
 .adm-handle {
@@ -547,7 +888,7 @@
 .adm-eye[aria-pressed="false"] { color: var(--accent-orange); }
 
 .adm-row-body { display: grid; gap: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-.adm-row-foot { display: flex; justify-content: flex-end; }
+.adm-row-foot { display: flex; justify-content: flex-end; gap: 8px; }
 
 .adm-add {
   display: grid;
@@ -594,8 +935,13 @@
 .adm-picture-tools { display: flex; align-items: center; gap: 8px; }
 
 /* A file input dressed as a button */
-.adm-file-btn { position: relative; cursor: pointer; }
+.adm-file-btn { position: relative; justify-self: start; overflow: hidden; cursor: pointer; }
 .adm-file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.adm-file-btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* A video's size and streaming rate, and what to do when it's too heavy */
+.adm-video-weight { display: grid; gap: 6px; }
+.adm-video-warn { margin: 0; padding: 8px 10px; border-left: 3px solid var(--accent-orange); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 0.82rem; }
 
 /* Phone preview: the page at phone width in a frame, beside the panel */
 .adm-phone {
@@ -611,7 +957,7 @@
   backdrop-filter: blur(6px);
 }
 
-.adm-phone.is-beside-panel { padding-right: min(560px, 100%); }
+.adm-phone.is-beside-panel { padding-right: var(--adm-w, 460px); }
 
 .adm-phone-frame {
   width: 390px;
@@ -721,12 +1067,444 @@
 .adm-notes { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--text-dim); font-size: 0.88rem; }
 .adm-notes strong { color: var(--text); }
 
-/* Saved colour schemes: preset-style buttons with a small delete in the corner */
-.adm-scheme { position: relative; display: grid; }
-.adm-scheme > .adm-preset { padding-right: 34px; }
-.adm-scheme > .adm-icon { position: absolute; top: 6px; right: 6px; }
-.adm-scheme-save { display: flex; gap: 8px; }
-.adm-scheme-save input { flex: 1; }
 
 /* Mouse effect: the uploaded pointer image */
 .adm-cursor-preview { width: 32px; height: 32px; object-fit: contain; flex: none; }
+
+/* An animated pointer from a cursor file, playing */
+.adm-cursor-anim {
+  display: inline-block;
+  height: calc(32px * var(--ratio, 1));
+  background-repeat: no-repeat;
+  background-size: calc(var(--frames) * 32px) 100%;
+  animation: adm-cursor-frames var(--duration, 1s) steps(var(--frames)) infinite;
+}
+
+@keyframes adm-cursor-frames { to { background-position-x: calc(var(--frames) * -32px); } }
+
+/* Update notice: a slim bar under the top bar when the kit has a newer version */
+.adm-update-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-update-banner strong { margin-left: auto; color: var(--accent); white-space: nowrap; }
+.adm-update-banner:hover { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+.adm-update-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange); }
+
+/* Undo and redo in the top bar */
+.adm-undo,
+.adm-redo { font-size: 1.05rem; }
+.adm-undo:disabled,
+.adm-redo:disabled { opacity: 0.3; cursor: default; }
+.adm-undo:disabled:hover,
+.adm-redo:disabled:hover { border-color: var(--border); color: var(--text); }
+
+/* Lists of entries (projects, quotes, logos…): drag handle, folded rows */
+.adm-entry-list { display: grid; }
+.adm-entry-list > .adm-entry[hidden] { display: none; }
+.adm-entry.is-draft > .adm-entry-head .adm-entry-title { opacity: 0.6; }
+.adm-entry-head > .adm-handle { align-self: center; }
+.adm-narrow { width: auto !important; }
+
+/* "+ Add section": a card per kind of section */
+.adm-add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+
+.adm-add-card {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-add-card strong { font-size: 0.88rem; }
+.adm-add-card span { color: var(--text-dim); font-size: 0.78rem; line-height: 1.35; }
+.adm-add-card:hover { border-color: var(--accent-orange); }
+
+/* Text boxes with formatting buttons */
+.adm-rich { display: grid; }
+.adm-rich textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
+
+.adm-tools {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--bg);
+}
+
+.adm-tool {
+  min-width: 30px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.adm-tool:hover { border-color: var(--border); background: var(--surface); }
+.adm-tool[title="Bold"] { font-weight: 800; }
+.adm-tool[title="Italic"] { font-style: italic; }
+.adm-root .adm-tool-select { width: auto; min-width: 0; margin-left: auto; padding: 2px 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: 0.8rem; cursor: pointer; }
+.adm-root .adm-tool-select:hover { border-color: var(--border); background: var(--surface); }
+/* In a narrow box (half a row) the buttons wrap instead of squeezing */
+.adm-rich-line > .adm-tools { flex-wrap: wrap; }
+
+/* A one-line box with the buttons: the box comes first in the page code, the buttons show above it */
+.adm-rich-line > .adm-tools { order: -1; }
+.adm-rich-line > input,
+.adm-rich-line > textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
+
+/* The format bar: B, I, link and spacing above the text being typed on the page */
+.adm-format-bar { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 12px; color: var(--text); pointer-events: auto; }
+.adm-fmt { min-width: 28px; height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; font-size: 0.82rem; cursor: pointer; }
+.adm-fmt:hover:not(:disabled) { background: var(--surface); }
+.adm-fmt.is-active { background: var(--accent); color: var(--on-accent); }
+.adm-fmt:disabled { opacity: 0.4; cursor: default; }
+.adm-fmt[data-fmt="bold"] { font-weight: 800; }
+.adm-fmt[data-fmt="italic"] { font-style: italic; font-family: Georgia, serif; }
+.adm-fmt-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border); }
+.adm-fmt-label { margin: 0 4px 0 2px; color: var(--text-dim); font-size: 0.75rem; }
+.adm-format-bar .adm-fmt-keys { padding: 0 8px 0 2px; color: var(--text-dim); white-space: nowrap; }
+@media (max-width: 640px) { .adm-format-bar { flex-wrap: wrap; max-width: calc(100vw - 16px); } }
+
+/* While typing, the section, item and arrange bars step aside for it */
+.adm-is-typing :is(.adm-section-bar, .adm-item-bar, .adm-part-bar, .adm-part-tag, .adm-insert) { visibility: hidden !important; opacity: 0 !important; }
+
+/* A button: label, link, style and its controls on one row */
+.adm-button-row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 6px; align-items: center; }
+.adm-button-row select { width: auto; }
+
+@media (max-width: 480px) {
+  .adm-button-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* A selected picture's description, caption and controls */
+.adm-picture-tools .adm-form { gap: 6px; }
+
+/* Layouts: little drawings to pick from (panel, and ▦ in a section's bar) */
+.adm-layouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+
+.adm-layout {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.adm-layout svg { width: 56px; height: 37px; }
+.adm-layout rect.is-t { fill: currentColor; opacity: 0.55; }
+.adm-layout rect.is-p { fill: var(--accent); opacity: 0.85; }
+.adm-layout rect.is-b { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.7; }
+.adm-layout:hover { border-color: var(--accent-orange); color: var(--text); }
+.adm-layout.is-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--text); }
+
+.adm-bar-pop { position: relative; display: flex; }
+.adm-bar-pop > .adm-layout-menu { top: 34px; left: 0; display: block; width: 330px; }
+.adm-bar-pop > .adm-layout-menu[hidden] { display: none; }
+
+/* Parts (Look and layout): one row per part */
+.adm-part-row { display: grid; grid-template-columns: minmax(90px, 1fr) auto auto auto auto; align-items: center; gap: 6px; }
+.adm-part-row select { width: auto; padding: 5px 6px; font-size: 0.8rem; }
+.adm-part-name { font-size: 0.85rem; font-weight: 700; }
+
+@media (max-width: 520px) {
+  .adm-part-row { grid-template-columns: 1fr auto; }
+}
+
+
+/* Nothing in the panel moves when a line of text changes:
+   the status line stays one line (errors may wrap: they need reading), */
+.adm-status:not(.is-error) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a row's or project's header stays one line whatever its badges say, */
+.adm-entry-title { overflow: hidden; }
+/* A long title wraps under its badge instead of being cut off */
+.adm-entry-title { flex-wrap: wrap; row-gap: 4px; }
+.adm-entry-title > span:not(.adm-badge) { min-width: 0; overflow-wrap: anywhere; }
+.adm-entry-title .adm-badge { white-space: nowrap; }
+/* and the update notice sits at the bottom of the panel instead of pushing everything down when it arrives */
+.adm-editor > .adm-update-banner { position: sticky; bottom: 12px; z-index: 3; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); background: color-mix(in srgb, var(--accent) 22%, var(--bg-alt)); }
+
+/* Docked on the left: the panel, its Admin tab and the phone preview swap sides */
+.adm-root.adm-root--left {
+  right: auto;
+  left: 0;
+  border-left: 0;
+  border-right: 1px solid var(--border);
+  box-shadow: 24px 0 60px rgba(0, 0, 0, 0.55);
+}
+
+.adm-root--left.is-min { transform: translateX(-100%); }
+.adm-edge.is-left { right: auto; left: 0; border-radius: 0 10px 10px 0; box-shadow: 6px 0 20px rgba(0, 0, 0, 0.4); }
+.adm-phone.is-beside-panel.is-left { padding-right: 0; padding-left: var(--adm-w, 460px); }
+.adm-win-side { font-size: 1rem; }
+
+/* Pages: Home and the others to switch between, and "+ New page" */
+.adm-page-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.adm-page-pill {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.adm-page-pill:hover { border-color: var(--accent-orange); }
+.adm-page-pill.is-active { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 700; }
+.adm-page-add { border-style: dashed; color: var(--text-dim); background: transparent; }
+
+/* "⋯": the panel's less used controls */
+.adm-more-wrap { position: relative; }
+.adm-more-btn { font-size: 1.1rem; }
+
+.adm-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  min-width: 250px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-alt);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.adm-menu[hidden] { display: none; }
+
+.adm-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-menu-item:hover { background: var(--surface); }
+.adm-menu-sign { width: 20px; text-align: center; color: var(--text-dim); }
+
+/* An open section: Content | Layout | Settings */
+.adm-row-tabs { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); justify-self: start; }
+
+.adm-row-tab {
+  padding: 5px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.adm-row-tab:hover { color: var(--text); }
+.adm-row-tab.is-active { background: var(--surface); color: var(--text); font-weight: 700; box-shadow: 0 0 0 1px var(--border); }
+
+/* Long help: the first sentence, "more" for the rest */
+.adm-hint-more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* "+ Add section": one button that opens the kinds */
+.adm-add-toggle { justify-self: start; }
+.adm-add-toggle.is-open { border-color: var(--text-dim); }
+
+/* Recovery code */
+.adm-recovery-code {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--accent);
+  border-radius: 10px;
+  background: var(--surface);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: all;
+}
+
+.adm-code-input { font-family: ui-monospace, Consolas, monospace; letter-spacing: 0.04em; text-transform: uppercase; }
+.adm-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.adm-steps a { color: var(--accent); text-decoration: underline; }
+
+/* Docked: the page makes room next to the panel instead of going under it */
+html.adm-docked body { margin-right: var(--adm-w, 460px); }
+html.adm-docked-left body { margin-right: 0; margin-left: var(--adm-w, 460px); }
+.adm-root:not(.adm-root--floating):not(.adm-root--full) { box-shadow: none; }
+
+/* Resizing: grips on every edge and corner of the window (docked: the inner edge) */
+.adm-rz { position: fixed; z-index: 901; touch-action: none; }
+.adm-rz[hidden] { display: none; }
+html .adm-rz-n, html .adm-rz-s { cursor: ns-resize !important; }
+html .adm-rz-e, html .adm-rz-w { cursor: ew-resize !important; }
+html .adm-rz-ne, html .adm-rz-sw { cursor: nesw-resize !important; }
+html .adm-rz-nw, html .adm-rz-se { cursor: nwse-resize !important; }
+.adm-rz:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+/* While resizing, the page underneath doesn't pick up the mouse */
+html.adm-resizing, html.adm-resizing * { user-select: none; }
+html.adm-resizing iframe { pointer-events: none; }
+
+/* Fonts as samples: the current one, and the list to pick from (each written in itself) */
+.adm-font-current,
+.adm-font {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-font-current:hover,
+.adm-font:hover { border-color: var(--accent-orange); }
+.adm-font-current.is-open { border-color: var(--accent); }
+.adm-font-current .adm-hint { margin-left: auto; }
+.adm-font-sample { flex: none; width: 40px; font-size: 1.5rem; font-weight: 700; line-height: 1.1; text-align: center; }
+.adm-font-name { font-size: 1rem; }
+.adm-fonts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; max-height: 360px; overflow-y: auto; padding: 2px; }
+.adm-font { padding: 6px 10px; border-color: transparent; background: transparent; }
+.adm-font.is-active { border-color: var(--accent); background: var(--surface); }
+.adm-fonts-group { grid-column: 1 / -1; margin-top: 4px; color: var(--text-dim); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+/* A font's weight, bold, spacing (and for headings italic and capitals), under its picker */
+.adm-font-styles { display: grid; gap: 10px; margin: -4px 0 6px; padding: 10px 0 10px 14px; border-left: 2px solid var(--border); }
+.adm-font-styles .adm-inline { gap: 8px 18px; }
+
+/* Folded groups: one line saying what they're set to */
+.adm-fold > summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; list-style: none; }
+.adm-fold > summary::-webkit-details-marker { display: none; }
+.adm-fold > summary::before { content: "\25B8"; color: var(--text-dim); transition: transform 0.15s ease; }
+.adm-fold[open] > summary::before { transform: rotate(90deg); }
+.adm-fold > summary .adm-group { margin: 0; }
+.adm-fold-value { margin-left: auto; color: var(--text-dim); font-size: 0.85rem; }
+.adm-fold[open] > summary { margin-bottom: 14px; }
+
+/* Parts on the page (the section open in the panel): hover shows a part's outline and name; a click
+   selects it and puts its toolbar just above it */
+.adm-editing [data-blocks],
+.adm-editing [data-block] { position: relative; }
+.adm-editing:not(.adm-previewing) .adm-selected [data-blocks] > [data-block]:hover { outline: 1px dashed color-mix(in srgb, var(--accent) 80%, transparent); outline-offset: 6px; }
+
+.adm-part-tag {
+  position: absolute;
+  top: -8px;
+  left: -6px;
+  z-index: 29;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: "Geologica", "Segoe UI", system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  translate: 0 -100%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.adm-editing:not(.adm-previewing) [data-blocks] > [data-block]:hover > .adm-part-tag { opacity: 1; }
+.adm-editing:not(.adm-previewing) [data-blocks] > .adm-part-selected { outline: 2px solid var(--accent); outline-offset: 6px; }
+.adm-part-selected > .adm-part-tag,
+.adm-previewing .adm-part-bar { display: none !important; }
+
+.adm-part-bar {
+  position: absolute;
+  z-index: 33;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-alt);
+  color: var(--text);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  font-family: "Geologica", "Segoe UI", system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.adm-part-name { padding: 1px 6px; border-radius: 5px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.adm-part-group { display: inline-flex; align-items: center; gap: 2px; }
+.adm-part-label { margin-right: 2px; color: var(--text-dim); font-size: 0.7rem; }
+.adm-part-label:empty { display: none; }
+.adm-part-value { min-width: 18px; color: var(--text); font-weight: 700; text-align: center; }
+.adm-part-bar .adm-bar-btn { min-width: 24px; height: 24px; padding: 0 6px; }
+.adm-part-bar .adm-bar-btn svg { width: 14px; height: 14px; }
+.adm-part-bar .adm-bar-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+/* The panel's stacked lists and boxes take the panel's width, not the width of their longest line
+   (menus and cards that size themselves to what's in them are left out) */
+:is(.adm-entry, .adm-entry-list, .adm-outline-list, .adm-row-body, .adm-add, .adm-rich, .adm-version, .adm-lang,
+  .adm-files, .adm-share-text, .adm-video-weight, .adm-font-styles) { grid-template-columns: minmax(0, 1fr); }

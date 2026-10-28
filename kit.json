@@ -1,11 +1,12 @@
 {
   "kit": "alladarmoussine/portfolio-kit",
   "source": "alladarmoussine/AlladarMoussineSite",
-  "build": 9,
-  "date": "2026-10-24",
-  "commit": "643251a",
+  "build": 28,
+  "date": "2026-10-28",
+  "commit": "dee52ea",
   "files": [
     ".gitattributes",
+    "404.html",
     "README.md",
     "index.html",
     "css/style.css",
@@ -16,6 +17,101 @@
     "starter/site.js"
   ],
   "notes": [
+    {
+      "build": 28,
+      "date": "2026-10-28",
+      "message": "Contact form: no message under it once the mail website has opened"
+    },
+    {
+      "build": 27,
+      "date": "2026-10-28",
+      "message": "Admin: the panel's Spacing dropdown no longer stretches the panel sideways"
+    },
+    {
+      "build": 26,
+      "date": "2026-10-28",
+      "message": "Merge branch 'dev'"
+    },
+    {
+      "build": 25,
+      "date": "2026-10-28",
+      "message": "Admin: update site content (1 new file(s))"
+    },
+    {
+      "build": 24,
+      "date": "2026-10-28",
+      "message": "Fix the Theme tab going blank with your own font; schemes easier to delete"
+    },
+    {
+      "build": 23,
+      "date": "2026-10-28",
+      "message": "Admin: update site content (1 new file(s))"
+    },
+    {
+      "build": 22,
+      "date": "2026-10-28",
+      "message": "Merge remote-tracking branch 'origin/dev'"
+    },
+    {
+      "build": 21,
+      "date": "2026-10-28",
+      "message": "Admin: update site content"
+    },
+    {
+      "build": 20,
+      "date": "2026-10-28",
+      "message": "Top section's fade: match the section below after switching dark/light"
+    },
+    {
+      "build": 19,
+      "date": "2026-10-28",
+      "message": "Dark/light button: left of the language switch, with a choice of look (icon, icon and word, switch)"
+    },
+    {
+      "build": 18,
+      "date": "2026-10-28",
+      "message": "Dark and light for visitors"
+    },
+    {
+      "build": 17,
+      "date": "2026-10-26",
+      "message": "Merge remote-tracking branch 'origin/dev'"
+    },
+    {
+      "build": 16,
+      "date": "2026-10-26",
+      "message": "Admin: update site content"
+    },
+    {
+      "build": 15,
+      "date": "2026-10-26",
+      "message": "Merge remote-tracking branch 'origin/dev'"
+    },
+    {
+      "build": 14,
+      "date": "2026-10-26",
+      "message": "Admin: update site content"
+    },
+    {
+      "build": 13,
+      "date": "2026-10-26",
+      "message": "Admin: update site content"
+    },
+    {
+      "build": 12,
+      "date": "2026-10-26",
+      "message": "Admin: update site content"
+    },
+    {
+      "build": 11,
+      "date": "2026-10-25",
+      "message": "Merge dev: editing on the page, new section types, layouts, cursor files"
+    },
+    {
+      "build": 10,
+      "date": "2026-10-25",
+      "message": "Admin: notice a kit update on unlock, with a bar that opens the Updates section"
+    },
     {
       "build": 9,
       "date": "2026-10-24",
