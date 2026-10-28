@@ -18,10 +18,55 @@ window.SITE_CONTENT = {
   "theme": {
     "preset": "violet",
     "font": "Cormorant Garamond",
-    "headingFont": "Bricolage Grotesque",
-    "radius": 14,
-    "colors": {},
-    "customFonts": []
+    "headingFont": "Moving House",
+    "radius": 10,
+    "textWeight": 500,
+    "boldWeight": 700,
+    "textSpacing": 0,
+    "textSize": 100,
+    "headingWeight": 900,
+    "headingBold": 900,
+    "headingItalic": false,
+    "headingCase": "upper",
+    "headingSpacing": 7,
+    "colors": {
+      "bg": "#f6f6ff",
+      "text": "#1a1922",
+      "accent": "#8b6cff",
+      "accent2": "#dc5aa3",
+      "bgAlt": "#ecebf8",
+      "surface": "#fdfdff",
+      "border": "#d4d3df",
+      "textDim": "#5d5c67",
+      "onAccent": "#141414",
+      "heroBg": "#0b0a12",
+      "mode": "light"
+    },
+    "customFonts": [
+      {
+        "name": "Moving House",
+        "weight": "auto",
+        "style": "normal",
+        "file": "assets/fonts/moving-house-mvskqgbl.otf"
+      }
+    ],
+    "cursor": {
+      "style": "image",
+      "size": 32,
+      "color": "invert",
+      "grow": true,
+      "image": "",
+      "tip": "center",
+      "glowSize": 320,
+      "glowStrength": 18,
+      "glowColor": "accent",
+      "magnetic": false
+    },
+    "saved": [],
+    "titleDot": true,
+    "switchable": true,
+    "modeButton": "icon",
+    "other": {}
   },
   "categories": [
     {
@@ -39,6 +84,7 @@ window.SITE_CONTENT = {
   ],
   "sections": {
     "order": [
+      "hero",
       "about",
       "reel",
       "work",
@@ -50,51 +96,97 @@ window.SITE_CONTENT = {
     "work": {
       "title": "Work",
       "nav": "",
+      "anchor": "",
+      "bgColor": "",
+      "bgImage": "",
       "inMenu": true,
       "background": "alt",
       "titleStyle": "large",
       "titleSize": 100,
-      "categories": []
+      "categories": [],
+      "width": "normal",
+      "spacing": "normal",
+      "device": "all",
+      "bgDarken": 50,
+      "layout": "auto"
     },
     "about": {
       "title": "",
       "nav": "",
+      "anchor": "",
+      "bgColor": "#1d2633",
+      "bgImage": "",
       "inMenu": true,
       "background": "alt",
       "titleStyle": "large",
-      "titleSize": 100
+      "titleSize": 100,
+      "width": "normal",
+      "spacing": "normal",
+      "device": "all",
+      "bgDarken": 50,
+      "layout": "photo-right"
     },
     "reel": {
       "title": "",
       "nav": "",
+      "anchor": "",
+      "bgColor": "",
+      "bgImage": "",
       "inMenu": true,
       "background": "main",
       "titleStyle": "large",
-      "titleSize": 100
+      "titleSize": 100,
+      "width": "normal",
+      "spacing": "normal",
+      "device": "all",
+      "bgDarken": 50,
+      "layout": "stacked"
     },
     "experience": {
       "title": "",
       "nav": "",
+      "anchor": "",
+      "bgColor": "",
+      "bgImage": "",
       "inMenu": false,
       "background": "alt",
       "titleStyle": "small",
-      "titleSize": 100
+      "titleSize": 100,
+      "width": "normal",
+      "spacing": "normal",
+      "device": "all",
+      "bgDarken": 50
     },
     "toolkit": {
       "title": "",
       "nav": "",
+      "anchor": "",
+      "bgColor": "",
+      "bgImage": "",
       "inMenu": false,
       "background": "alt",
       "titleStyle": "small",
-      "titleSize": 100
+      "titleSize": 100,
+      "width": "normal",
+      "spacing": "normal",
+      "device": "all",
+      "bgDarken": 50
     },
     "contact": {
       "title": "",
       "nav": "",
+      "anchor": "",
+      "bgColor": "",
+      "bgImage": "",
       "inMenu": true,
       "background": "main",
       "titleStyle": "large",
-      "titleSize": 100
+      "titleSize": 100,
+      "width": "normal",
+      "spacing": "normal",
+      "device": "all",
+      "bgDarken": 50,
+      "layout": "stacked"
     },
     "highlights": {
       "title": ""
@@ -227,7 +319,8 @@ window.SITE_CONTENT = {
     "seconds": 6
   },
   "hidden": {
-    "reel": true
+    "reel": true,
+    "work.intro": true
   },
   "workGrids": [],
   "customSections": [],
@@ -239,5 +332,12 @@ window.SITE_CONTENT = {
       "fr"
     ],
     "ui": {}
-  }
+  },
+  "pages": [],
+  "contactForm": {
+    "service": "",
+    "key": ""
+  },
+  "projectView": "popup",
+  "savedAt": "2026-10-28T20:55:35.353Z"
 };
